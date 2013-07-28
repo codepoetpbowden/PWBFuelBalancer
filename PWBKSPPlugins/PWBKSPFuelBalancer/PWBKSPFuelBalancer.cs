@@ -15,6 +15,8 @@ class PartAndResource
 
 }
 
+
+
 public class PWBKSPFuelBalancer : PartModule
 {
     System.Collections.ArrayList tanks;
@@ -31,7 +33,7 @@ public class PWBKSPFuelBalancer : PartModule
     [KSPField(isPersistant = false, guiActive = true, guiName = "Status")]
     public string Status;
 
-    [KSPField(isPersistant = false, guiActive = true, guiName = "Com Error", guiUnits="m" , guiFormat="f3")]
+    [KSPField(isPersistant = false, guiActive = true, guiName = "CoM Error", guiUnits="m" , guiFormat="f3")]
     public float fComError;
 
 
@@ -41,41 +43,84 @@ public class PWBKSPFuelBalancer : PartModule
         BalanceFuel(); 
     }
 
-    [KSPEvent(guiActive = true, guiName = "Balance Fuel", active = true)]
-    private void BalanceFuel()
+    [KSPEvent(guiActive = true, guiName = "Deactivate", active = false)]
+    private void Disable()
     {
-        // TODO, do something to balance the fuel in the tanks
-        //print("BalanceFuel()");
-        if (Status == "Deactivated")
+        this.Status = "Deactivated";
+        Events["Disable"].active = false;
+        Events["BalanceFuel"].active = true;
+        Events["Maintain"].active = true;
+        
+        // Clear the list of tanks. They will have to be rebuilt next time balancing is enabled
+        this.tanks = null;
+    }
+
+    [KSPEvent(guiActive = true, guiName = "Keep Balanced", active = true)]
+    private void Maintain()
+    {
+        // If we were previously Deactivated then we need to build a list of tanks and set up to start balancing
+        if (Status == "Deactivated" || Status == "Balance not possible")
         {
-            Status = "Balancing";
+            BuildTanksList();
 
-            // Go through all the parts and get a list of the tanks which should save us some bother
-            //print("building a tank list");
-
-            this.tanks = new System.Collections.ArrayList();
-            foreach (Part _part in this.vessel.Parts)
-            {
-                // Step over all resources in this tank.
-                foreach (PartResource _resource in _part.Resources)
-                {
-                    if (_resource.info.density > 0)
-                    { // Only consider resources that have mass (don't move electricity!)
-                        tanks.Add(new PartAndResource(_part, _resource));
-                    }
-                }
-            }
             this.iNextSourceTank=0;
             this.iNextDestinationTank=0;
             this.fNextAmountMoved = 1;
             this.fMostMovedThisRound=0;
-            //print("built tank list");
         }
+        
+        Events["Disable"].active = true;
+        Events["BalanceFuel"].active = false;
+        Events["Maintain"].active = false;
+        Status = "Maintaining";
+        
+        return;
+    }
+    
+    [KSPEvent(guiActive = true, guiName = "Balance Fuel", active = true)]
+    private void BalanceFuel()
+    {
+        // If we were previousyl deactive, then we need to build the loist of tanks and set up to start balancing
+        if (Status == "Deactivated" || Status == "Balance not possible")
+        {
+            BuildTanksList();
 
-        // TODO, Do we need to do something here to tell things that the status has changed?
+            this.iNextSourceTank=0;
+            this.iNextDestinationTank=0;
+            this.fNextAmountMoved = 1;
+            this.fMostMovedThisRound=0;
+        }
+        
+        Events["Disable"].active = true;
+        Events["BalanceFuel"].active = false;
+        Events["Maintain"].active = false;
+        Status = "Balancing";
 
         return;
     }
+
+    private void BuildTanksList()
+    {
+        // Go through all the parts and get a list of the tanks which should save us some bother
+        //print("building a tank list");
+
+        this.tanks = new System.Collections.ArrayList();
+        foreach (Part _part in this.vessel.Parts)
+        {
+            // Step over all resources in this tank.
+            foreach (PartResource _resource in _part.Resources)
+            {
+                if (_resource.info.density > 0)
+                { // Only consider resources that have mass (don't move electricity!)
+                    tanks.Add(new PartAndResource(_part, _resource));
+                }
+            }
+        }
+
+        return;
+    }
+
+
 
     /// <summary>
     /// Constructor style setup.
@@ -95,10 +140,6 @@ public class PWBKSPFuelBalancer : PartModule
     {
         // Set the status to be deactivated
         Status = "Deactivated";
-
-        // Add stuff to the log
-        //print("Started the PWB KSP Fuel Balancer");
-
     }
 
     /// <summary>
@@ -118,37 +159,47 @@ public class PWBKSPFuelBalancer : PartModule
         // Update the ComError (hopefully this will not kill our performance)
         this.fComError = this.CalculateCoMFromTargetCoM(part.vessel.findWorldCenterOfMass());
 
-        // Only do anything is we are in a Balancing state
-        if (this.Status == "Balancing")
+        if(this.Status != "Deactivated" && this.Status != "Balance not possible")
         {
-            float originalCoMToTargetCoMDistance = fComError;
-            if (originalCoMToTargetCoMDistance < 0.0001)
+            if(fComError < 0.002)
             {
-                // Close enough? stop balancing
-                //print("Stopping balancing as reduced distance to " + originalCoMToTargetCoMDistance);
-                this.Status = "Deactivated";
+                // The error is so small we need not worry anymore
+                if(Status == "Balancing")
+                {
+                    this.Status = "Deactivated";
+                    Events["Disable"].active = false;
+                    Events["BalanceFuel"].active = true;
+                    Events["Maintain"].active = true;
+
+                    // Clear the list of tanks. They will have to be rebuilt next time balancing is enabled
+                    this.tanks = null;
+                }
+                else if(Status == "Maintaining")
+                {
+                    // Move from a maintaining state to a standby one. If the error increases we con mvoe back to a maintining state
+                    this.Status = "Standby";
+
+                    this.iNextSourceTank=0;
+                    this.iNextDestinationTank=0;
+                    this.fNextAmountMoved = 1;
+                    this.fMostMovedThisRound=0;
+                }
             }
             else
             {
-                //print("Starting distance from Com to TargetCoM: " =originalCoMToTargetCoMDistance);
-                this.AttemptToMoveCoM();
+                // There is an error
+                if(this.Status == "Standby")
+                {
+                    // is the error large enough to get us back into a maintaining mode?
+                    if (fComError > 0.002 * 2)
+                    {
+                        this.Status = "Maintaining";
+                    }
+                }
+                this.MoveFuel();
             }
         }
     }
-
-    /// <summary>
-    /// Tries to move some fuel around
-    /// Returns the new distance from the CoMTarget
-    /// </summary>
-    private void AttemptToMoveCoM()
-    {
-        print("Attempting to move fuel. iNextSourceTank:" + iNextSourceTank + " iNextDestinationTank:" + iNextDestinationTank + " fNextAmountMoved:" + fNextAmountMoved + " fMostMovedThisRound:" + fNextAmountMoved);
-
-        // TODO reconsider has we disable after the CoM can not longer be improved
-        float fImprovement = MoveFuel();
-        //print("moved CoM by: " +fImprovement);
-    }
-
 
     private float CalculateCoMFromTargetCoM(Vector3 vecWorldCoM)
     {
@@ -179,6 +230,7 @@ public class PWBKSPFuelBalancer : PartModule
     /// <param name='node'>The node to save in to</param>
     public override void OnSave(ConfigNode node)
     {
+
     }
 
     /// <summary>
@@ -188,8 +240,8 @@ public class PWBKSPFuelBalancer : PartModule
     /// <param name='node'>The node to load from</param>
     public override void OnLoad(ConfigNode node)
     {
-    }
 
+    }
 
     public void OnMouseOver()
     {
@@ -219,17 +271,12 @@ public class PWBKSPFuelBalancer : PartModule
 
                     this.vecFuelBalancerCoMTarget = vecFuelBalancerCoMTarget - vecFuelBalancerPartLocation;
                     //print(this.vecFuelBalancerCoMTarget.ToString());
-
-
-                
                 } 
-
                 //print("Setting the targetCoM location for fuel balancing.");
             }
         }
     }
     
-    // Borrowed this code from somewhere else
     // Transfer fuel to move the center of mass from current position towards target.
     // Returns the new distance the CoM was moved towards its target
     public  float MoveFuel()
@@ -353,14 +400,17 @@ public class PWBKSPFuelBalancer : PartModule
             // Since we are now starting a new round, the next thing to consider is whether we moved anything this round. If not then we need to consider moving smaller amounts
             if (this.fMostMovedThisRound == 0)
             {
-                this.fNextAmountMoved = this.fNextAmountMoved / 1.5f;
+                this.fNextAmountMoved = this.fNextAmountMoved / 2f;
                 //print("changing the amount to move to be " + fNextAmountMoved);
 
                 // Finally has the amount move become so small that we need to call it a day?
-                if (this.fNextAmountMoved < 0.001)
+                if (this.fNextAmountMoved < 0.0005)
                 {
-                    //print("Considering moving very small amounts. Time to call it a day");
-                    this.Status = "Deactivated";
+                    // Since perfect balance is not possible, we need to move into an appropriate state so that reflects this
+                    this.Status = "Balance not possible";
+                    Events["Disable"].active = true;
+                    Events["BalanceFuel"].active = true;
+                    Events["Maintain"].active = true;
                     // throw away the tanks list
                     this.tanks = null;
                 }
