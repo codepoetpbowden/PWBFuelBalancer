@@ -15,8 +15,6 @@ class PartAndResource
 
 }
 
-
-
 public class PWBKSPFuelBalancer : PartModule
 {
     System.Collections.ArrayList tanks;
@@ -24,6 +22,8 @@ public class PWBKSPFuelBalancer : PartModule
     int iNextDestinationTank;
     float fNextAmountMoved;
     float fMostMovedThisRound;
+    float fStartingMoveAmount;
+    private OSD osd;
 
     [KSPField]
     public string setMassKey = "m";
@@ -65,7 +65,7 @@ public class PWBKSPFuelBalancer : PartModule
 
             this.iNextSourceTank=0;
             this.iNextDestinationTank=0;
-            this.fNextAmountMoved = 1;
+            this.fNextAmountMoved = this.fStartingMoveAmount;
             this.fMostMovedThisRound=0;
         }
         
@@ -87,7 +87,7 @@ public class PWBKSPFuelBalancer : PartModule
 
             this.iNextSourceTank=0;
             this.iNextDestinationTank=0;
-            this.fNextAmountMoved = 1;
+            this.fNextAmountMoved = this.fStartingMoveAmount;
             this.fMostMovedThisRound=0;
         }
         
@@ -140,6 +140,8 @@ public class PWBKSPFuelBalancer : PartModule
     {
         // Set the status to be deactivated
         Status = "Deactivated";
+        osd = new OSD();
+        fStartingMoveAmount = 1; // TODO change this to reflect flow rates and the physics frame rate
     }
 
     /// <summary>
@@ -181,7 +183,7 @@ public class PWBKSPFuelBalancer : PartModule
 
                     this.iNextSourceTank=0;
                     this.iNextDestinationTank=0;
-                    this.fNextAmountMoved = 1;
+                    this.fNextAmountMoved = this.fStartingMoveAmount;
                     this.fMostMovedThisRound=0;
                 }
             }
@@ -255,22 +257,20 @@ public class PWBKSPFuelBalancer : PartModule
                 {
                     // There is no CoM indicator. Perhaps we should spawn an instruction screen or something
                     /* nothing to do */
+
+                    osd.Error("To set the target CoM, first turn on the CoM Marker");
                     return;
                 }
                 else
                 {
-                    //print("CoM info:");
-                    //print(CoM.ToString());
                     // get the location of the centre of mass
-                    Vector3 vecFuelBalancerCoMTarget = CoM.transform.position;
-                    //print(vecFuelBalancerCoMTarget.ToString());
+                    Vector3 vecCom = CoM.transform.position;
+                    Vector3 vecPartLocation = part.transform.position;
 
-                    // What really interests us is the location fo the CoM relative to the part that is the balancer // TODO I suppose that means that we need to react to it being moved.
-                    Vector3 vecFuelBalancerPartLocation = part.transform.position;
-                    //print(vecFuelBalancerPartLocation.ToString());
-
-                    this.vecFuelBalancerCoMTarget = vecFuelBalancerCoMTarget - vecFuelBalancerPartLocation;
-                    //print(this.vecFuelBalancerCoMTarget.ToString());
+                    // What really interests us is the location fo the CoM relative to the part that is the balancer 
+                    this.vecFuelBalancerCoMTarget = Quaternion.Inverse(EditorLogic.VesselRotation) * (vecCom - vecPartLocation);
+                    
+                    osd.Success("The target CoM has been set");
                 } 
                 //print("Setting the targetCoM location for fuel balancing.");
             }
@@ -406,13 +406,21 @@ public class PWBKSPFuelBalancer : PartModule
                 // Finally has the amount move become so small that we need to call it a day?
                 if (this.fNextAmountMoved < 0.0005)
                 {
-                    // Since perfect balance is not possible, we need to move into an appropriate state so that reflects this
-                    this.Status = "Balance not possible";
-                    Events["Disable"].active = true;
-                    Events["BalanceFuel"].active = true;
-                    Events["Maintain"].active = true;
-                    // throw away the tanks list
-                    this.tanks = null;
+                    // Since perfect balance is not possible, we need to move into an appropriate state.If we are trying to maiintain blanace then we will keep trying trying again with larger amounts. If we were trying for a single balance then move to a state that shows it is not possible.
+                    if (this.Status == "Maintaining")
+                    {
+                        this.fNextAmountMoved = this.fStartingMoveAmount;
+                        Events["Disable"].active = true;
+                    }
+                    else
+                    {
+                        this.Status = "Balance not possible";
+                        Events["Disable"].active = true;
+                        Events["BalanceFuel"].active = true;
+                        Events["Maintain"].active = true;
+                        // throw away the tanks list
+                        this.tanks = null;
+                    }
                 }
             }
             this.fMostMovedThisRound = 0;
@@ -424,17 +432,81 @@ public class PWBKSPFuelBalancer : PartModule
         // Return the amount that the CoM has been corrected
         return (float)(fCoMStartingError - fOldCoMError);
     }
+  
+    public void OnGUI()
+    {
+        EditorLogic editor = EditorLogic.fetch;
+        if (editor == null) return;
+        if (editor.editorScreen != EditorLogic.EditorScreen.Parts) return;
 
-
-
-
-
-
-
-
-
-
-
+        osd.Update();
+    }
 
 }
+
+
+// Utils - Borrowed from KSP Select Root Mod - credit where it is due
+public class OSD
+{
+    private class Message
+    {
+        public String text;
+        public Color color;
+        public float hideAt;
+    }
+
+    private List<OSD.Message> msgs = new List<OSD.Message>();
+
+    private static GUIStyle CreateStyle(Color color)
+    {
+        GUIStyle style = new GUIStyle();
+        style.stretchWidth = true;
+        style.alignment = TextAnchor.MiddleCenter;
+        style.fontSize = 20;
+        style.fontStyle = FontStyle.Bold;
+        style.normal.textColor = color;
+        return style;
+    }
+
+    Predicate<Message> pre = delegate(Message m) { return (Time.time >= m.hideAt); };
+    Action<Message> showMesssage = delegate(Message m) { GUILayout.Label(m.text, CreateStyle(m.color)); };
+
+    public void Update()
+    {
+        if (msgs.Count == 0) return;
+        msgs.RemoveAll(pre);
+        GUILayout.BeginArea(new Rect(0, Screen.height*0.1f, Screen.width, Screen.height*0.8f), CreateStyle(Color.white));
+        msgs.ForEach(showMesssage);
+        GUILayout.EndArea();
+    }
+
+    public void Error(String text) {
+        AddMessage(text, XKCDColors.LightRed);
+    }
+
+    public void Success(String text)
+    {
+        AddMessage(text, XKCDColors.Cerulean);
+    }
+
+    public void Info(String text)
+    {
+        AddMessage(text, XKCDColors.OffWhite);
+    }
+
+    public void AddMessage(String text, Color color, float shownFor)
+    {
+        OSD.Message msg = new OSD.Message();
+        msg.text = text;
+        msg.color = color;
+        msg.hideAt = Time.time + shownFor;
+        msgs.Add(msg);
+    }
+
+    public void AddMessage(String text, Color color)
+    {
+        this.AddMessage(text, color, 3);
+    }
+}
+
 
