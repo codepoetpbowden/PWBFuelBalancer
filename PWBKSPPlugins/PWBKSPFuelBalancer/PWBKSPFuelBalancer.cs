@@ -24,9 +24,13 @@ public class PWBKSPFuelBalancer : PartModule
     float fMostMovedThisRound;
     float fStartingMoveAmount;
     private OSD osd;
+    public  GameObject SavedCoM;
 
     [KSPField]
     public string setMassKey = "m";
+    [KSPField]
+    public string displayMarker = "d";
+    
     [KSPField(isPersistant = true)]
     public UnityEngine.Vector3 vecFuelBalancerCoMTarget;
 
@@ -142,6 +146,7 @@ public class PWBKSPFuelBalancer : PartModule
         Status = "Deactivated";
         osd = new OSD();
         fStartingMoveAmount = 1; // TODO change this to reflect flow rates and the physics frame rate
+        SavedCoM = null; // marker to display the saved location
     }
 
     /// <summary>
@@ -269,14 +274,61 @@ public class PWBKSPFuelBalancer : PartModule
 
                     // What really interests us is the location fo the CoM relative to the part that is the balancer 
                     this.vecFuelBalancerCoMTarget = Quaternion.Inverse(EditorLogic.VesselRotation) * (vecCom - vecPartLocation);
-                    
-                    osd.Success("The target CoM has been set");
+
+                    // Set up the marker if we have not already done this.
+                    if (null == this.SavedCoM)
+                    {
+                        this.CreateSavedComMarker();
+                    }
+
+                    osd.Success("The CoM has been set");
                 } 
                 //print("Setting the targetCoM location for fuel balancing.");
+            }
+            else if(part.isConnected && Input.GetKey(displayMarker))
+            {
+                this.ToggleMarker();
             }
         }
     }
     
+    private void ToggleMarker()
+    {
+        if (null != this.SavedCoM)
+        {
+            if (this.SavedCoM.activeSelf)
+            {
+                this.SavedCoM.SetActive(false);
+            }
+            else
+            {
+                this.SavedCoM.SetActive(true);
+            }
+        }
+        else
+        {
+            // This is not quite true - we it might have been set and saved with the craft.
+            osd.Error("The CoM has not been set yet.");
+        }
+    }
+
+    private void CreateSavedComMarker()
+    {
+        EditorMarker_CoM _CoM =
+                    (EditorMarker_CoM)GameObject.FindObjectOfType(typeof(EditorMarker_CoM));
+        GameObject CoM = _CoM.gameObject;
+        SavedCoM = (GameObject)UnityEngine.Object.Instantiate(CoM);
+        SavedCoM.renderer.material.color = Color.green;
+        Destroy(SavedCoM.GetComponent<EditorMarker_CoM>()); /* we don't need this */
+        SavedCoM.AddComponent<SavedCoM_Marker>();             /* we do need this    */
+
+        // Tell the marker which instance of the PWBFueldBalancingModule it is displaying the set CoM location for (we could have more than one per vessel)
+        {
+            SavedCoM_Marker temp = SavedCoM.GetComponent<SavedCoM_Marker>();
+            temp.LinkPart(this);
+        }
+    }
+
     // Transfer fuel to move the center of mass from current position towards target.
     // Returns the new distance the CoM was moved towards its target
     public  float MoveFuel()
@@ -510,3 +562,29 @@ public class OSD
 }
 
 
+
+
+public class SavedCoM_Marker : MonoBehaviour
+{
+    PWBKSPFuelBalancer _linkedPart;
+
+    public void LinkPart(PWBKSPFuelBalancer newPart)
+    {
+        print("Linking part");
+        _linkedPart = newPart;
+    }
+
+    void LateUpdate()
+    {
+        if (EditorLogic.startPod == null)
+        {
+            return;
+        }
+        if (null != _linkedPart)
+        {
+            transform.position = (EditorLogic.VesselRotation * _linkedPart.vecFuelBalancerCoMTarget) + _linkedPart.part.transform.position;
+        }
+
+    }
+
+}
