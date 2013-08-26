@@ -24,7 +24,9 @@ public class PWBKSPFuelBalancer : PartModule
     float fMostMovedThisRound;
     float fStartingMoveAmount;
     private OSD osd;
-    public  GameObject SavedCoM;
+    public  GameObject SavedCoMMarker;
+    public GameObject ActualCoMMarker;
+    private bool markerVisible;
 
     [KSPField]
     public string setMassKey = "m";
@@ -33,6 +35,9 @@ public class PWBKSPFuelBalancer : PartModule
     
     [KSPField(isPersistant = true)]
     public UnityEngine.Vector3 vecFuelBalancerCoMTarget;
+
+    [KSPField(isPersistant = true)]
+    public UnityEngine.Quaternion rotationInEditor;
 
     [KSPField(isPersistant = false, guiActive = true, guiName = "Status")]
     public string Status;
@@ -124,6 +129,11 @@ public class PWBKSPFuelBalancer : PartModule
         return;
     }
 
+    public void OnDestroy()
+    {
+        DestroySavedComMarker();
+    }
+
 
 
     /// <summary>
@@ -133,7 +143,9 @@ public class PWBKSPFuelBalancer : PartModule
     /// </summary>
     public override void OnAwake()
     {
+        //print("PWBKSPFueBalancer::OnAwake");
         tanks = null;
+        markerVisible = false;
     }
 
     /// <summary>
@@ -142,11 +154,14 @@ public class PWBKSPFuelBalancer : PartModule
     /// </summary>
     public override void OnStart(StartState state)
     {
+        print("PWBKSPFueBalancer::OnStart");
         // Set the status to be deactivated
         Status = "Deactivated";
         osd = new OSD();
         fStartingMoveAmount = 1; // TODO change this to reflect flow rates and the physics frame rate
-        SavedCoM = null; // marker to display the saved location
+        SavedCoMMarker = null; // marker to display the saved location
+        
+        this.CreateSavedComMarker();
     }
 
     /// <summary>
@@ -166,12 +181,12 @@ public class PWBKSPFuelBalancer : PartModule
         // Update the ComError (hopefully this will not kill our performance)
         this.fComError = this.CalculateCoMFromTargetCoM(part.vessel.findWorldCenterOfMass());
 
-        if(this.Status != "Deactivated" && this.Status != "Balance not possible")
+        if (this.Status != "Deactivated" && this.Status != "Balance not possible")
         {
-            if(fComError < 0.002)
+            if (fComError < 0.002)
             {
                 // The error is so small we need not worry anymore
-                if(Status == "Balancing")
+                if (Status == "Balancing")
                 {
                     this.Status = "Deactivated";
                     Events["Disable"].active = false;
@@ -181,21 +196,21 @@ public class PWBKSPFuelBalancer : PartModule
                     // Clear the list of tanks. They will have to be rebuilt next time balancing is enabled
                     this.tanks = null;
                 }
-                else if(Status == "Maintaining")
+                else if (Status == "Maintaining")
                 {
                     // Move from a maintaining state to a standby one. If the error increases we con mvoe back to a maintining state
                     this.Status = "Standby";
 
-                    this.iNextSourceTank=0;
-                    this.iNextDestinationTank=0;
+                    this.iNextSourceTank = 0;
+                    this.iNextDestinationTank = 0;
                     this.fNextAmountMoved = this.fStartingMoveAmount;
-                    this.fMostMovedThisRound=0;
+                    this.fMostMovedThisRound = 0;
                 }
             }
             else
             {
                 // There is an error
-                if(this.Status == "Standby")
+                if (this.Status == "Standby")
                 {
                     // is the error large enough to get us back into a maintaining mode?
                     if (fComError > 0.002 * 2)
@@ -206,28 +221,45 @@ public class PWBKSPFuelBalancer : PartModule
                 this.MoveFuel();
             }
         }
+
+        // While we are here - does the marker object exisit, and is it all OK? Only bother checking if the marker should be visible.
+        /*
+        if(this.markerVisible)
+        {
+            if (null == this.SavedCoMMarker)
+            {
+                print("Warning - Saved CoM marker gameobject is null");
+            }
+            else
+            {
+                if (false == this.SavedCoMMarker.activeSelf)
+                {
+                    // The marker is not active, should it be?
+                    if (this.markerVisible)
+                    {
+                        print("Warning, the CoM marker should be visible, but it is set to inactive");
+                    }
+                }
+
+                if (this.SavedCoMMarker.layer != 17)
+                {
+                    print("warning, CoM marker should be in layer 17, but is not. Layer:" + this.SavedCoMMarker.layer);
+                }
+            }
+        }
+        */
     }
 
     private float CalculateCoMFromTargetCoM(Vector3 vecWorldCoM)
     {
-        // Vector3 vecworldCoM = part.vessel.findWorldCenterOfMass(); (now passed in as a parameter
-        // Rotate the COM and part by the inverse of the vessel's rotation, which should put everything back in the position it was in the VAB
+        Vector3 vecTargetComRotated = (this.transform.rotation * Quaternion.Inverse(this.rotationInEditor)) * this.vecFuelBalancerCoMTarget;
+        Vector3 vecTargetPositionInWorldSpace = this.part.transform.position+ vecTargetComRotated;
 
-        Vector3 vecRotatedWorldCom = Quaternion.Inverse(part.vessel.transform.rotation) * vecWorldCoM;
-        Vector3 vecRotatedPartPosition = Quaternion.Inverse(part.vessel.transform.rotation) * part.transform.position;
+        float distanceFromCoMToTarget = (vecTargetPositionInWorldSpace - vecWorldCoM).magnitude;
 
-        // Get the position of the CoM relative to the part. That should be comparable to the relative position of the CoM and part that was noted in the VAB.
-        Vector3 vecFuelBalancerCoM = vecRotatedWorldCom - vecRotatedPartPosition;
-
-        //print("position of the CoM from the part:");
-        //print(vecFuelBalancerCoM);
-
-        // Finally calculate the distance from the location of the CoM and the target location of the CoM - this is what we need to try to minimize by moving the fuel around.
-        Vector3 vecCoMtoTargetCoM = vecFuelBalancerCoM - this.vecFuelBalancerCoMTarget;
-        //print("Distance between the CoM location and the target CoM location");
-        //print(vecCoMtoTargetCoM.magnitude.ToString());
-
-        return (vecCoMtoTargetCoM.magnitude);
+        // print("Distance between the CoM location and the target CoM location: " + distanceFromCoMToTarget.ToString());
+  
+        return (distanceFromCoMToTarget);
     }
 
     /// <summary>
@@ -237,6 +269,7 @@ public class PWBKSPFuelBalancer : PartModule
     /// <param name='node'>The node to save in to</param>
     public override void OnSave(ConfigNode node)
     {
+        //print("PWBKSPFueBalancer::OnSave");
 
     }
 
@@ -247,7 +280,7 @@ public class PWBKSPFuelBalancer : PartModule
     /// <param name='node'>The node to load from</param>
     public override void OnLoad(ConfigNode node)
     {
-
+        //print("PWBKSPFueBalancer::OnLoad");
     }
 
     public void OnMouseOver()
@@ -260,24 +293,29 @@ public class PWBKSPFuelBalancer : PartModule
                 EditorMarker_CoM CoM = (EditorMarker_CoM)GameObject.FindObjectOfType(typeof(EditorMarker_CoM));
                 if (CoM == null)
                 {
-                    // There is no CoM indicator. Perhaps we should spawn an instruction screen or something
-                    /* nothing to do */
-
+                    // There is no CoM indicator. Spawn an instruction screen or something
                     osd.Error("To set the target CoM, first turn on the CoM Marker");
-                    return;
                 }
                 else
                 {
                     // get the location of the centre of mass
+                    //print("Com position: " + CoM.transform.position);
                     Vector3 vecCom = CoM.transform.position;
+                    //print("vecCom: " + vecCom);
+                    
+                    this.rotationInEditor = part.transform.rotation;
+                    //print("Part position: " + part.transform.position);
                     Vector3 vecPartLocation = part.transform.position;
+                    //print("vecPartLocation: " + vecPartLocation);
 
                     // What really interests us is the location fo the CoM relative to the part that is the balancer 
-                    this.vecFuelBalancerCoMTarget = Quaternion.Inverse(EditorLogic.VesselRotation) * (vecCom - vecPartLocation);
+                    this.vecFuelBalancerCoMTarget = vecCom - vecPartLocation;
+                    //print("vecFuelBalancerCoMTarget: " + this.vecFuelBalancerCoMTarget + "rotationInEditor: " + this.rotationInEditor);
 
                     // Set up the marker if we have not already done this.
-                    if (null == this.SavedCoM)
+                    if (null == this.SavedCoMMarker)
                     {
+                        //print("Setting up the CoM marker - this should have happened on Startup!");
                         this.CreateSavedComMarker();
                     }
 
@@ -291,41 +329,124 @@ public class PWBKSPFuelBalancer : PartModule
             }
         }
     }
-    
+
+    [KSPEvent(guiActive = true, guiName = "Toggle Marker", active = true)]
     private void ToggleMarker()
     {
-        if (null != this.SavedCoM)
+        this.markerVisible = !this.markerVisible;
+
+        // If we are in mapview then hide the marker
+        if(null != this.SavedCoMMarker)
         {
-            if (this.SavedCoM.activeSelf)
+            if (MapView.MapIsEnabled)
             {
-                this.SavedCoM.SetActive(false);
+                this.SavedCoMMarker.SetActive(false);
             }
             else
             {
-                this.SavedCoM.SetActive(true);
+                this.SavedCoMMarker.SetActive(this.markerVisible);
             }
         }
-        else
+
+        if (null != this.ActualCoMMarker)
         {
-            // This is not quite true - we it might have been set and saved with the craft.
-            osd.Error("The CoM has not been set yet.");
+            if (MapView.MapIsEnabled)
+            {
+                this.ActualCoMMarker.SetActive(false);
+            }
+            else
+            {
+                this.ActualCoMMarker.SetActive(this.markerVisible);
+            }
         }
+
     }
 
     private void CreateSavedComMarker()
     {
-        EditorMarker_CoM _CoM =
-                    (EditorMarker_CoM)GameObject.FindObjectOfType(typeof(EditorMarker_CoM));
-        GameObject CoM = _CoM.gameObject;
-        SavedCoM = (GameObject)UnityEngine.Object.Instantiate(CoM);
-        SavedCoM.renderer.material.color = Color.green;
-        Destroy(SavedCoM.GetComponent<EditorMarker_CoM>()); /* we don't need this */
-        SavedCoM.AddComponent<SavedCoM_Marker>();             /* we do need this    */
-
-        // Tell the marker which instance of the PWBFueldBalancingModule it is displaying the set CoM location for (we could have more than one per vessel)
+        
+        // Do not try to create the marker is it already exisits
+        if (null == this.SavedCoMMarker)
         {
-            SavedCoM_Marker temp = SavedCoM.GetComponent<SavedCoM_Marker>();
-            temp.LinkPart(this);
+            // First try to find the camera that will be used to display the marker - it needs a special camera to make it "float"
+            Camera markerCam = null;
+            foreach (Camera _cam in Camera.allCameras)
+            {
+                if (_cam.name == "markerCam")
+                {
+                    markerCam = _cam;
+                }
+            }
+
+            // Did we find the camera? If we did then set up the marker object, and idsplkay it via tha camera we found
+            if (null != markerCam)
+            {
+                // Try to create a game object using our marker mesh
+                SavedCoMMarker = (GameObject)GameObject.Instantiate(GameDatabase.Instance.GetModel("pwb/Assets/PWBTargetComMarker"));
+
+                // Make it a bit smaller - we need to fix the model for this
+                SavedCoMMarker.transform.localScale = Vector3.one * 0.5f;
+
+                // Add a behaviour to it to allow us to control it and link it to the part that is marks the saved CoM position for
+                SavedCoMMarker.AddComponent<SavedCoM_Marker>();
+                // Tell the marker which instance of the PWBFueldBalancingModule it is displaying the set CoM location for (we could have more than one per vessel)
+                SavedCoMMarker.GetComponent<SavedCoM_Marker>().LinkPart(this);
+
+                // Start the marker visible if it has been set to be visible, or hidden if it is set to be hidden
+                SavedCoMMarker.SetActive(this.markerVisible);
+
+                int layer = (int)(Math.Log(markerCam.cullingMask) / Math.Log(2));
+                // print("MarkerCam has cullingMask: " + markerCam.cullingMask + " setting marker to be in layer: " + layer);
+                SavedCoMMarker.layer = layer;
+
+
+                // Do it all again to create a marker for the actual centre of mass (rather than the target) TODO find a way of refactoring this
+                if(HighLogic.LoadedSceneIsFlight)
+                {
+                    // Try to create a game object using our marker mesh
+                    ActualCoMMarker = (GameObject)GameObject.Instantiate(GameDatabase.Instance.GetModel("pwb/Assets/PWBComMarker"));
+
+                    // Make it a bit smaller - we need to fix the model for this
+                    ActualCoMMarker.transform.localScale = Vector3.one * 0.45f;
+                    ActualCoMMarker.renderer.material.color = Color.yellow;
+
+                    // Add a behaviour to it to allow us to control it and link it to the part that is marks the saved CoM position for
+                    ActualCoMMarker.AddComponent<PWBCoM_Marker>();
+                    // Tell the marker which instance of the PWBFueldBalancingModule it is displaying the set CoM location for (we could have more than one per vessel)
+                    ActualCoMMarker.GetComponent<PWBCoM_Marker>().LinkPart(this);
+
+                    // Start the marker visible if it has been set to be visible, or hidden if it is set to be hidden
+                    ActualCoMMarker.SetActive(this.markerVisible);
+
+                    print("MarkerCam has cullingMask: " + markerCam.cullingMask + " setting marker to be in layer: " + layer);
+                    ActualCoMMarker.layer = layer;
+                }
+
+            }
+            else
+            {
+                // No camera - no point in setting up the object, Perhaps there will be another oppertunity.
+                print("Warning - could not find the markerCam, It is probably best not to create the marker object as we do not know which layer to place it in anyway");
+            }
+        }
+    }
+
+    private void DestroySavedComMarker()
+    {
+        // Destroy the Saved Com Marker if the part is destroyed.
+        if (null != this.SavedCoMMarker)
+        {
+            this.SavedCoMMarker.GetComponent<SavedCoM_Marker>().LinkPart(null);
+            GameObject.Destroy(this.SavedCoMMarker);
+            this.SavedCoMMarker = null;
+        }
+
+        // Destroy the Actual Com Marker if the part is destroyed.
+        if (null != this.ActualCoMMarker)
+        {
+            this.ActualCoMMarker.GetComponent<PWBCoM_Marker>().LinkPart(null);
+            GameObject.Destroy(this.ActualCoMMarker);
+            this.ActualCoMMarker = null;
         }
     }
 
@@ -493,9 +614,7 @@ public class PWBKSPFuelBalancer : PartModule
 
         osd.Update();
     }
-
 }
-
 
 // Utils - Borrowed from KSP Select Root Mod - credit where it is due
 public class OSD
@@ -561,9 +680,6 @@ public class OSD
     }
 }
 
-
-
-
 public class SavedCoM_Marker : MonoBehaviour
 {
     PWBKSPFuelBalancer _linkedPart;
@@ -576,15 +692,133 @@ public class SavedCoM_Marker : MonoBehaviour
 
     void LateUpdate()
     {
-        if (EditorLogic.startPod == null)
-        {
-            return;
-        }
         if (null != _linkedPart)
         {
-            transform.position = (EditorLogic.VesselRotation * _linkedPart.vecFuelBalancerCoMTarget) + _linkedPart.part.transform.position;
+            Vector3 vecTargetComRotated =  (this._linkedPart.transform.rotation *  Quaternion.Inverse(this._linkedPart.rotationInEditor)) * this._linkedPart.vecFuelBalancerCoMTarget;
+            transform.position = this._linkedPart.part.transform.position +  vecTargetComRotated;
+            if(HighLogic.LoadedSceneIsFlight)
+            {
+                transform.rotation = this._linkedPart.vessel.transform.rotation;
+            }
+            // print("CoM marker position has been set to: " + transform.position);
         }
-
     }
 
 }
+
+public class PWBCoM_Marker : MonoBehaviour
+{
+    PWBKSPFuelBalancer _linkedPart;
+
+    public void LinkPart(PWBKSPFuelBalancer newPart)
+    {
+        print("Linking part");
+        _linkedPart = newPart;
+    }
+
+    void LateUpdate()
+    {
+        if (null != _linkedPart)
+        {
+            transform.position =  this._linkedPart.vessel.findWorldCenterOfMass();
+            transform.rotation = this._linkedPart.vessel.transform.rotation;
+            
+            // print("Actual CoM marker position has been set to: " + transform.position);
+        }
+    }
+}
+
+[KSPAddon(KSPAddon.Startup.Flight, false)]
+public class InFlightMarkerCam : MonoBehaviour
+{
+    GameObject markerCamObject;
+
+    void Awake()
+    {
+        //print("InFlightMarkerCam::Awake");
+        this.markerCamObject = null;
+    }
+
+    public void Start()
+    {
+        //print("InFlightMarkerCam::Start");
+        CreateMarkerCam();
+    }
+
+
+    private void DestroyMarkerCam()
+    {
+        // print("InFlightMarkerCam::DestroyMarkerCam");
+        if (null != markerCamObject)
+        {
+            // print("Shutting down the inflight MarkerCamObject");
+            // There should be only one, but lets do all of them just in case.
+            foreach (MarkerCam_Behaviour b in markerCamObject.GetComponents<MarkerCam_Behaviour>())
+            {
+                Destroy(b);
+            }
+
+            GameObject.Destroy(this.markerCamObject);
+
+            this.markerCamObject = null;
+        }
+    }
+
+    private void CreateMarkerCam()
+    {
+        if (null == this.markerCamObject)
+        {
+            // print("Setting up the inflight MarkerCamObject");
+            markerCamObject = new GameObject("MarkerCamObject");
+            markerCamObject.transform.parent = FlightCamera.fetch.cameras[0].gameObject.transform;//Camera.mainCamera.gameObject.transform; // Set the new camera to be a child of the main camera  
+            Camera markerCam = (Camera)markerCamObject.AddComponent<Camera>();
+
+            // Change a few things - the depth needs to be higher so it renders over the top
+            markerCam.name = "markerCam";
+            markerCam.depth = Camera.main.depth + 10;
+            markerCam.clearFlags = CameraClearFlags.Depth;
+            // Add a behaviour so we can get the MarkerCam to come around and change itself when the main camera changes
+            markerCamObject.AddComponent<MarkerCam_Behaviour>(); // TODO can this be removed?
+
+            // Set the culling mask. 
+            markerCam.cullingMask = 1 << 17;
+        }
+        else
+        {
+            // Check that it is active and stuff
+            /*
+             * if (false == markerCamObject.activeSelf)
+            {
+                print("MarkerCam not active");
+            }
+
+            if (markerCamObject.camera.cullingMask != 1 << 17)
+            {
+                print("MarkerCam cull mask is:" + markerCamObject.camera.cullingMask);
+            }
+
+            if (false == markerCamObject.camera.enabled)
+            {
+                print("MarkerCam is not enabled");
+            }
+            */
+        }
+    }
+
+    private void OnDestroy()
+    {
+        DestroyMarkerCam();
+    }
+}
+
+// Behaviour to make the MarkerCam move with the main camera - I suspect that I do not need this TODO try to remove
+public class MarkerCam_Behaviour : MonoBehaviour
+{
+    void LateUpdate()
+    {
+        this.gameObject.transform.position = FlightCamera.fetch.cameras[0].gameObject.transform.position;
+        this.gameObject.transform.rotation = FlightCamera.fetch.cameras[0].gameObject.transform.rotation;
+        // print("Setting markercam to be at: " + this.gameObject.transform.position + " and rotation " + Camera.main.transform.position);
+    }
+}
+
