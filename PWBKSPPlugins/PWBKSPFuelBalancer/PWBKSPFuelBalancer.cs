@@ -280,7 +280,43 @@ public class PWBKSPFuelBalancer : PartModule
     /// <param name='node'>The node to load from</param>
     public override void OnLoad(ConfigNode node)
     {
-        //print("PWBKSPFueBalancer::OnLoad");
+        print("PWBKSPFueBalancer::OnLoad");
+
+        // For now just dump out what the Config nodes are...
+        dumpConfigNode(node);
+
+        // Is the rotation config value set?
+        if (!node.values.Contains("rotationInEditor"))
+        {
+            // rotationInEditor does not exist - must be a v0.0.3 craft. We need to upgrade it.
+            print("rotationInEditor was not set.");
+            // Only bother to upgrade if we are in flight. If we are in the VAB/SPH then the user can fix the CoM themselves (or just lauch)
+            if (HighLogic.LoadedSceneIsFlight)
+            {
+                // TODO remove diagnostic
+                {
+                    // I am suspicious that on loading the vessel rotation is not properly set. Let us check
+                    print("In onload this.vessel.transform.rotation" + this.vessel.transform.rotation);
+                }
+                this.rotationInEditor = this.part.transform.rotation * Quaternion.Inverse(this.vessel.transform.rotation);
+                print("rotationInEditor was not set. In flight it has been set to: " + this.rotationInEditor);
+
+            }
+            else if(HighLogic.LoadedSceneIsEditor)
+            {
+                this.rotationInEditor = this.part.transform.rotation * Quaternion.Inverse(EditorLogic.VesselRotation);
+                print("rotationInEditor was not set. In the editor it has been set to: " + this.rotationInEditor);
+
+            }
+
+        }
+    }
+
+    private void dumpConfigNode(ConfigNode node)
+    {
+        print("ConfigNode: name: " + node.name.ToString() + " id: " + node.id.ToString());
+        print("values: ");
+        print("ToString: " + node.ToString());
     }
 
     public void OnMouseOver()
@@ -302,7 +338,7 @@ public class PWBKSPFuelBalancer : PartModule
                     //print("Com position: " + CoM.transform.position);
                     Vector3 vecCom = CoM.transform.position;
                     //print("vecCom: " + vecCom);
-                    
+
                     this.rotationInEditor = part.transform.rotation;
                     //print("Part position: " + part.transform.position);
                     Vector3 vecPartLocation = part.transform.position;
@@ -320,6 +356,11 @@ public class PWBKSPFuelBalancer : PartModule
                     }
 
                     osd.Success("The CoM has been set");
+
+                    // TODO remove - Diagnostics
+                    {
+                        print("EditorLogic.VesselRotation : " + EditorLogic.VesselRotation);
+                    }
                 } 
                 //print("Setting the targetCoM location for fuel balancing.");
             }
@@ -360,6 +401,18 @@ public class PWBKSPFuelBalancer : PartModule
             }
         }
 
+        // TODO remove - Diagnostics
+        {
+            if (HighLogic.LoadedSceneIsFlight)
+            {
+                print("vessel.transform.rotation : " + this.vessel.transform.rotation);
+                print("vessel.ReferenceTransform.rotation : " + this.vessel.ReferenceTransform.rotation);
+                print("vessel.transform.rotation .eulerAngles: " + this.vessel.transform.rotation.eulerAngles);
+                print("vessel.upaxis : " + this.vessel.upAxis);
+
+                print("upaxis: " + (Vector3)(Quaternion.Inverse(this.vessel.transform.rotation) *this.vessel.upAxis ));
+            }
+        }
     }
 
     private void CreateSavedComMarker()
