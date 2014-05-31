@@ -12,11 +12,13 @@ class PartAndResource
         this.part = pPart;
         this.resource = pResource;
     }
-
 }
 
-public class PWBKSPFuelBalancer : PartModule
+  
+public class PWBFuelBalancer : PartModule
 {
+
+    
     System.Collections.ArrayList tanks;
     int iNextSourceTank;
     int iNextDestinationTank;
@@ -27,6 +29,7 @@ public class PWBKSPFuelBalancer : PartModule
     public  GameObject SavedCoMMarker;
     public GameObject ActualCoMMarker;
     private bool markerVisible;
+    private bool started = false; // used to tell if we are set up and good to go. The Update method will check this know if it is a good idea to try to go anything or not.
 
     [KSPField]
     public string setMassKey = "m";
@@ -131,6 +134,7 @@ public class PWBKSPFuelBalancer : PartModule
 
     public void OnDestroy()
     {
+        this.started = false;
         DestroySavedComMarker();
     }
 
@@ -162,6 +166,8 @@ public class PWBKSPFuelBalancer : PartModule
         SavedCoMMarker = null; // marker to display the saved location
         
         this.CreateSavedComMarker();
+
+        this.started = true;
     }
 
     /// <summary>
@@ -174,80 +180,86 @@ public class PWBKSPFuelBalancer : PartModule
 
     /// <summary>
     /// Per-physx-frame update
-    /// Called ONLY when Part is ACTIVE!
     /// </summary>
-    public override void OnFixedUpdate()
+    private void FixedUpdate()
     {
-        // Update the ComError (hopefully this will not kill our performance)
-        this.fComError = this.CalculateCoMFromTargetCoM(part.vessel.findWorldCenterOfMass());
-
-        if (this.Status != "Deactivated" && this.Status != "Balance not possible")
+        if (this.started)
         {
-            if (fComError < 0.002)
+            // Only do this while in flight
+            if(HighLogic.LoadedSceneIsFlight)
             {
-                // The error is so small we need not worry anymore
-                if (Status == "Balancing")
-                {
-                    this.Status = "Deactivated";
-                    Events["Disable"].active = false;
-                    Events["BalanceFuel"].active = true;
-                    Events["Maintain"].active = true;
+                // Update the ComError (hopefully this will not kill our performance)
+                this.fComError = this.CalculateCoMFromTargetCoM(part.vessel.findWorldCenterOfMass());
 
-                    // Clear the list of tanks. They will have to be rebuilt next time balancing is enabled
-                    this.tanks = null;
-                }
-                else if (Status == "Maintaining")
+                if (this.Status != "Deactivated" && this.Status != "Balance not possible")
                 {
-                    // Move from a maintaining state to a standby one. If the error increases we con mvoe back to a maintining state
-                    this.Status = "Standby";
-
-                    this.iNextSourceTank = 0;
-                    this.iNextDestinationTank = 0;
-                    this.fNextAmountMoved = this.fStartingMoveAmount;
-                    this.fMostMovedThisRound = 0;
-                }
-            }
-            else
-            {
-                // There is an error
-                if (this.Status == "Standby")
-                {
-                    // is the error large enough to get us back into a maintaining mode?
-                    if (fComError > 0.002 * 2)
+                    if (fComError < 0.002)
                     {
-                        this.Status = "Maintaining";
+                        // The error is so small we need not worry anymore
+                        if (Status == "Balancing")
+                        {
+                            this.Status = "Deactivated";
+                            Events["Disable"].active = false;
+                            Events["BalanceFuel"].active = true;
+                            Events["Maintain"].active = true;
+
+                            // Clear the list of tanks. They will have to be rebuilt next time balancing is enabled
+                            this.tanks = null;
+                        }
+                        else if (Status == "Maintaining")
+                        {
+                            // Move from a maintaining state to a standby one. If the error increases we con mvoe back to a maintining state
+                            this.Status = "Standby";
+
+                            this.iNextSourceTank = 0;
+                            this.iNextDestinationTank = 0;
+                            this.fNextAmountMoved = this.fStartingMoveAmount;
+                            this.fMostMovedThisRound = 0;
+                        }
+                    }
+                    else
+                    {
+                        // There is an error
+                        if (this.Status == "Standby")
+                        {
+                            // is the error large enough to get us back into a maintaining mode?
+                            if (fComError > 0.002 * 2)
+                            {
+                                this.Status = "Maintaining";
+                            }
+                        }
+                        this.MoveFuel();
                     }
                 }
-                this.MoveFuel();
             }
-        }
 
-        // While we are here - does the marker object exisit, and is it all OK? Only bother checking if the marker should be visible.
-        /*
-        if(this.markerVisible)
-        {
-            if (null == this.SavedCoMMarker)
+            // While we are here - does the marker object exisit, and is it all OK? Only bother checking if the marker should be visible.
+            /*
+            if(this.markerVisible)
             {
-                print("Warning - Saved CoM marker gameobject is null");
-            }
-            else
-            {
-                if (false == this.SavedCoMMarker.activeSelf)
+                if (null == this.SavedCoMMarker)
                 {
-                    // The marker is not active, should it be?
-                    if (this.markerVisible)
+                    print("Warning - Saved CoM marker gameobject is null");
+                }
+                else
+                {
+                    if (false == this.SavedCoMMarker.activeSelf)
                     {
-                        print("Warning, the CoM marker should be visible, but it is set to inactive");
+                        // The marker is not active, should it be?
+                        if (this.markerVisible)
+                        {
+                            print("Warning, the CoM marker should be visible, but it is set to inactive");
+                        }
+                    }
+
+                    if (this.SavedCoMMarker.layer != 17)
+                    {
+                        print("warning, CoM marker should be in layer 17, but is not. Layer:" + this.SavedCoMMarker.layer);
                     }
                 }
-
-                if (this.SavedCoMMarker.layer != 17)
-                {
-                    print("warning, CoM marker should be in layer 17, but is not. Layer:" + this.SavedCoMMarker.layer);
-                }
             }
+            */
         }
-        */
     }
 
     private float CalculateCoMFromTargetCoM(Vector3 vecWorldCoM)
@@ -435,7 +447,7 @@ public class PWBKSPFuelBalancer : PartModule
             if (null != markerCam)
             {
                 // Try to create a game object using our marker mesh
-                SavedCoMMarker = (GameObject)GameObject.Instantiate(GameDatabase.Instance.GetModel("pwb/Assets/PWBTargetComMarker"));
+                SavedCoMMarker = (GameObject)GameObject.Instantiate(GameDatabase.Instance.GetModel("PWBFuelBalancer/Assets/PWBTargetComMarker"));
 
                 // Make it a bit smaller - we need to fix the model for this
                 SavedCoMMarker.transform.localScale = Vector3.one * 0.5f;
@@ -457,7 +469,7 @@ public class PWBKSPFuelBalancer : PartModule
                 if(HighLogic.LoadedSceneIsFlight)
                 {
                     // Try to create a game object using our marker mesh
-                    ActualCoMMarker = (GameObject)GameObject.Instantiate(GameDatabase.Instance.GetModel("pwb/Assets/PWBComMarker"));
+                    ActualCoMMarker = (GameObject)GameObject.Instantiate(GameDatabase.Instance.GetModel("PWBFuelBalancer/Assets/PWBComMarker"));
 
                     // Make it a bit smaller - we need to fix the model for this
                     ActualCoMMarker.transform.localScale = Vector3.one * 0.45f;
@@ -735,9 +747,9 @@ public class OSD
 
 public class SavedCoM_Marker : MonoBehaviour
 {
-    PWBKSPFuelBalancer _linkedPart;
+    PWBFuelBalancer _linkedPart;
 
-    public void LinkPart(PWBKSPFuelBalancer newPart)
+    public void LinkPart(PWBFuelBalancer newPart)
     {
         print("Linking part");
         _linkedPart = newPart;
@@ -761,9 +773,9 @@ public class SavedCoM_Marker : MonoBehaviour
 
 public class PWBCoM_Marker : MonoBehaviour
 {
-    PWBKSPFuelBalancer _linkedPart;
+    PWBFuelBalancer _linkedPart;
 
-    public void LinkPart(PWBKSPFuelBalancer newPart)
+    public void LinkPart(PWBFuelBalancer newPart)
     {
         print("Linking part");
         _linkedPart = newPart;
