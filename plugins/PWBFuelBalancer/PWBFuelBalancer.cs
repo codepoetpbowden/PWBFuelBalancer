@@ -14,8 +14,11 @@ class PartAndResource
     }
 }
 
+public class PWBKSPFuelBalancer : ModulePWBFuelBalancer
+{ // This is required as a saved game will have the old Module name in the save file. 
+}
   
-public class PWBFuelBalancer : PartModule
+public class ModulePWBFuelBalancer : PartModule
 {
 
     
@@ -48,7 +51,6 @@ public class PWBFuelBalancer : PartModule
     [KSPField(isPersistant = false, guiActive = true, guiName = "CoM Error", guiUnits="m" , guiFormat="f3")]
     public float fComError;
 
-
     [KSPAction("Balance Fuel Tanks")]
     public void BalanceFuelAction(KSPActionParam param) 
     { 
@@ -56,7 +58,7 @@ public class PWBFuelBalancer : PartModule
     }
 
     [KSPEvent(guiActive = true, guiName = "Deactivate", active = false)]
-    private void Disable()
+    public void Disable()
     {
         this.Status = "Deactivated";
         Events["Disable"].active = false;
@@ -68,7 +70,7 @@ public class PWBFuelBalancer : PartModule
     }
 
     [KSPEvent(guiActive = true, guiName = "Keep Balanced", active = true)]
-    private void Maintain()
+    public void Maintain()
     {
         // If we were previously Deactivated then we need to build a list of tanks and set up to start balancing
         if (Status == "Deactivated" || Status == "Balance not possible")
@@ -90,7 +92,7 @@ public class PWBFuelBalancer : PartModule
     }
     
     [KSPEvent(guiActive = true, guiName = "Balance Fuel", active = true)]
-    private void BalanceFuel()
+    public void BalanceFuel()
     {
         // If we were previousyl deactive, then we need to build the loist of tanks and set up to start balancing
         if (Status == "Deactivated" || Status == "Balance not possible")
@@ -158,7 +160,7 @@ public class PWBFuelBalancer : PartModule
     /// </summary>
     public override void OnStart(StartState state)
     {
-        print("PWBKSPFueBalancer::OnStart");
+        print("PWBFueBalancer::OnStart");
         // Set the status to be deactivated
         Status = "Deactivated";
         osd = new OSD();
@@ -384,7 +386,7 @@ public class PWBFuelBalancer : PartModule
     }
 
     [KSPEvent(guiActive = true, guiName = "Toggle Marker", active = true)]
-    private void ToggleMarker()
+    public void ToggleMarker()
     {
         this.markerVisible = !this.markerVisible;
 
@@ -747,9 +749,9 @@ public class OSD
 
 public class SavedCoM_Marker : MonoBehaviour
 {
-    PWBFuelBalancer _linkedPart;
+    ModulePWBFuelBalancer _linkedPart;
 
-    public void LinkPart(PWBFuelBalancer newPart)
+    public void LinkPart(ModulePWBFuelBalancer newPart)
     {
         print("Linking part");
         _linkedPart = newPart;
@@ -768,14 +770,13 @@ public class SavedCoM_Marker : MonoBehaviour
             // print("CoM marker position has been set to: " + transform.position);
         }
     }
-
 }
 
 public class PWBCoM_Marker : MonoBehaviour
 {
-    PWBFuelBalancer _linkedPart;
+    ModulePWBFuelBalancer _linkedPart;
 
-    public void LinkPart(PWBFuelBalancer newPart)
+    public void LinkPart(ModulePWBFuelBalancer newPart)
     {
         print("Linking part");
         _linkedPart = newPart;
