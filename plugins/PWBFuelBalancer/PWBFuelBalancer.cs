@@ -1,6 +1,397 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using UnityEngine;
+
+
+
+[KSPAddon(KSPAddon.Startup.EveryScene, false)]
+public class PWBFuelBalancerAddon : MonoBehaviour
+{
+    // The Addon on keeps a reference to all the PWBFuelBalancers in the current vessel. If the current vessel changes or is modified then this list will need to be rebuilt.
+    List<ModulePWBFuelBalancer> listFuelBalancers;
+
+    private static Rect windowPosition = new Rect(0, 0, 360, 480);
+    private static GUIStyle windowStyle = null;
+    private bool weLockedInputs = false;
+
+    private ApplicationLauncherButton stockToolbarButton = null; // Stock Toolbar Button
+
+    private bool visable = false;
+
+    private int editorPartCount = 0; // This is horrible. Because there does not seem to be an obvious callback to sink when parts are added and removed in the editor, on each fixed update we will could the parts and if it has changed then rebuild the balancer list. Yuk!
+
+    private int selectedBalancer = 0;
+
+    public static PWBFuelBalancerAddon Instance
+    {
+        get;
+        private set;
+    }
+
+    public PWBFuelBalancerAddon()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+    }
+
+    public void Awake()
+    {
+        //Debug.Log("PWBFuelBalancerAddon:Awake");
+
+        // create the list of balancers
+        this.listFuelBalancers = new List<ModulePWBFuelBalancer>();
+
+        // Set up the stock toolbar
+        GameEvents.onGUIApplicationLauncherReady.Add(OnGUIAppLauncherReady);
+        GameEvents.onGUIApplicationLauncherDestroyed.Add(OnGUIAppLauncherDestroyed);
+
+    }
+
+    public void Start()
+    {
+        Debug.Log("PWBFuelBalancerAddon:Start");
+
+        windowStyle = new GUIStyle(HighLogic.Skin.window);
+
+        try
+        {
+            RenderingManager.RemoveFromPostDrawQueue(0, OnDraw);
+        }
+        catch
+        {
+            // This is generally not a problem - do not log it.
+            // Debug.LogException(ex);
+        }
+
+        if (HighLogic.LoadedSceneIsEditor || HighLogic.LoadedSceneIsFlight)
+        {
+            RenderingManager.AddToPostDrawQueue(0, OnDraw);
+
+            GameEvents.onVesselWasModified.Add(OnVesselWasModified);
+            GameEvents.onVesselChange.Add(OnVesselChange);
+            GameEvents.onVesselLoaded.Add(OnVesselLoaded);
+            GameEvents.onFlightReady.Add(OnFlightReady);
+        }
+                
+    }
+
+    void OnGUIAppLauncherReady()
+    {
+        if (ApplicationLauncher.Ready)
+        {
+            this.stockToolbarButton = ApplicationLauncher.Instance.AddModApplication(onAppLaunchToggleOn,
+                                                                                     onAppLaunchToggleOff,
+                                                                                     DummyVoid,
+                                                                                     DummyVoid,
+                                                                                     DummyVoid,
+                                                                                     DummyVoid,
+                                                                                     ApplicationLauncher.AppScenes.VAB | ApplicationLauncher.AppScenes.SPH | ApplicationLauncher.AppScenes.FLIGHT,
+                                                                                     (Texture)GameDatabase.Instance.GetTexture("PWBFuelBalancer/Assets/pwbfuelbalancer_icon_off", false));
+        }
+    }
+
+    void OnGUIAppLauncherDestroyed()
+    {
+        if (this.stockToolbarButton != null)
+        {
+            ApplicationLauncher.Instance.RemoveModApplication(this.stockToolbarButton);
+            this.stockToolbarButton = null;
+        }
+    }
+
+    void onAppLaunchToggleOn()
+    {
+        this.stockToolbarButton.SetTexture((Texture)GameDatabase.Instance.GetTexture("PWBFuelBalancer/Assets/pwbfuelbalancer_icon_on", false));
+        this.visable = true;
+    }
+
+    void onAppLaunchToggleOff()
+    {
+        this.stockToolbarButton.SetTexture((Texture)GameDatabase.Instance.GetTexture("PWBFuelBalancer/Assets/pwbfuelbalancer_icon_off", false));
+
+        this.visable = false;
+    }
+
+    void DummyVoid() { }
+
+    private void OnDraw()
+    {
+        if (this.visable)
+        {
+            //Set the GUI Skin
+            //GUI.skin = HighLogic.Skin;
+
+            windowPosition = GUILayout.Window(947695, windowPosition, OnWindow, "PWB Fuel Balancer", windowStyle, GUILayout.MinHeight(20), GUILayout.ExpandHeight(true));
+        }
+    }
+
+    private void OnGUI()
+    {
+        GuiUtils.ComboBox.DrawGUI();
+
+        // If the mouse if over our window, then lock the rest of the UI
+        if (HighLogic.LoadedSceneIsEditor) PreventEditorClickthrough();
+        if (HighLogic.LoadedSceneIsFlight || HighLogic.LoadedSceneHasPlanetarium) PreventInFlightClickthrough();
+    }
+
+    private bool MouseIsOverWindow()
+    {
+        if (this.visable
+            && PWBFuelBalancerAddon.windowPosition.Contains(new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y) ))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    //Lifted this more or less directly from the Kerbal Engineer source. Thanks cybutek!
+    void PreventEditorClickthrough()
+    {
+        bool mouseOverWindow = MouseIsOverWindow();
+        if (!weLockedInputs && mouseOverWindow)
+        {
+            EditorLogic.fetch.Lock(true, true, true, "PWBFuelBalancer_click");
+            weLockedInputs = true;
+        }
+        if (weLockedInputs && !mouseOverWindow)
+        {
+            EditorLogic.fetch.Unlock("PWBFuelBalancer_click");
+            weLockedInputs = false;
+        }
+    }
+
+    void PreventInFlightClickthrough()
+    {
+        bool mouseOverWindow = MouseIsOverWindow();
+        if (!weLockedInputs && mouseOverWindow)
+        {
+            InputLockManager.SetControlLock(ControlTypes.CAMERACONTROLS | ControlTypes.MAP, "PWBFuelBalancer_click");
+            weLockedInputs = true;
+        }
+        if (weLockedInputs && !mouseOverWindow)
+        {
+            InputLockManager.RemoveControlLock("PWBFuelBalancer_click");
+            weLockedInputs = false;
+        }
+    }
+
+    private void OnWindow(int windowID)
+    {
+        try
+        {
+            if (this.listFuelBalancers.Count > 0)
+            {
+                GUILayout.BeginVertical();
+                List<String> strings = new List<String>();
+
+
+                foreach (ModulePWBFuelBalancer balancer in this.listFuelBalancers)
+                {
+                    strings.Add(balancer.balancerName + " position:" + balancer.vecFuelBalancerCoMTarget.ToString());
+                    //              GUILayout.Label(balancer.name + " position:" + balancer.vecFuelBalancerCoMTarget.ToString());
+                }
+
+                this.selectedBalancer = GuiUtils.ComboBox.Box(this.selectedBalancer, strings.ToArray(), this);
+
+                // Provide a facility to change the name of the balancer
+                {
+                    String oldName = this.listFuelBalancers[this.selectedBalancer].balancerName;
+                    String newName = GUILayout.TextField(oldName);
+
+                    if (oldName != newName)
+                    {
+                        this.listFuelBalancers[this.selectedBalancer].balancerName = newName;
+                    }
+                }
+                GUILayout.BeginHorizontal();
+
+                GUILayout.BeginVertical();
+                if (GUILayout.Button("up"))
+                {
+                    this.listFuelBalancers[this.selectedBalancer].vecFuelBalancerCoMTarget.y += 0.05f;
+                }
+                if (GUILayout.Button("down"))
+                {
+                    this.listFuelBalancers[this.selectedBalancer].vecFuelBalancerCoMTarget.y -= 0.05f;
+                }
+                GUILayout.EndVertical();
+                GUILayout.BeginVertical();
+
+                if (GUILayout.Button("forward"))
+                {
+                    this.listFuelBalancers[this.selectedBalancer].vecFuelBalancerCoMTarget.x += 0.05f;
+                }
+
+                if (GUILayout.Button("back"))
+                {
+                    this.listFuelBalancers[this.selectedBalancer].vecFuelBalancerCoMTarget.x -= 0.05f;
+                }
+
+                GUILayout.EndVertical();
+                GUILayout.EndHorizontal();
+
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("left"))
+                {
+                    this.listFuelBalancers[this.selectedBalancer].vecFuelBalancerCoMTarget.z += 0.05f;
+                }
+                if (GUILayout.Button("right"))
+                {
+                    this.listFuelBalancers[this.selectedBalancer].vecFuelBalancerCoMTarget.z -= 0.05f;
+                }
+
+                GUILayout.EndHorizontal();
+                GUILayout.EndVertical();
+            }
+            GUI.DragWindow();
+        }
+        catch (Exception ex)
+        {
+            Debug.LogException(ex);
+        }
+    }
+
+    public void Update()
+    {
+        // Debug.Log("PWBFuelBalancerAddon:Update");
+    }
+
+    public void FixedUpdate()
+    {
+        try
+        {
+           // Debug.Log("PWBFuelBalancerAddon:FixedUpdate");
+
+ 
+            // If we are in the editor, and there is a ship in the editor, then compare the number of parts to last time we did this. If it has changed then rebuild the CLSVessel
+            if (HighLogic.LoadedSceneIsEditor)
+            {
+                int currentPartCount = 0;
+                if (null == EditorLogic.RootPart)
+                {
+                    currentPartCount = 0; // I know that this is already 0, but just to make the point - if there is no startPod in the editor, then there are no parts in the vessel.
+                }
+                else
+                {
+                    currentPartCount = EditorLogic.SortedShipList.Count;
+                }
+
+                if (currentPartCount != this.editorPartCount)
+                {
+                    //Debug.Log("Calling RebuildCLSVessel as the part count has changed in the editor");
+                    this.BuildBalancerList();
+
+                    this.editorPartCount = currentPartCount;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogException(ex);
+        }
+    }
+
+    public void OnDestroy()
+    {
+        //Debug.Log("PWBFuelBalancerAddon::OnDestroy");
+
+        GameEvents.onVesselWasModified.Remove(OnVesselWasModified);
+        GameEvents.onVesselChange.Remove(OnVesselChange);
+        GameEvents.onVesselLoaded.Remove(OnVesselLoaded);
+        GameEvents.onFlightReady.Remove(OnFlightReady);
+
+        // Remove the stock toolbar button
+        GameEvents.onGUIApplicationLauncherReady.Remove(OnGUIAppLauncherReady);
+        if (this.stockToolbarButton != null)
+            ApplicationLauncher.Instance.RemoveModApplication(stockToolbarButton);
+    }
+
+    private void BuildBalancerList()
+    {
+        if (HighLogic.LoadedSceneIsFlight)
+        {
+            BuildBalancerList(FlightGlobals.ActiveVessel);
+        }
+        else if (HighLogic.LoadedSceneIsEditor)
+        {
+            if (null == EditorLogic.RootPart)
+            {
+                // There is no root part in the editor - this ought to mean that there are no parts. Just clear out everything
+                listFuelBalancers.Clear();
+            }
+            else
+            {
+                BuildBalancerList(EditorLogic.RootPart);
+            }
+        }
+    }
+
+    // Builds a list of off the ModulePWBFuelBalancers in the whole of the current vessel.
+    private void BuildBalancerList(Vessel v)
+    {
+        BuildBalancerList(v.rootPart);
+    }
+    
+    // Builds a list of off the ModulePWBFuelBalancers in the whole of the current vessel.
+    private void BuildBalancerList(Part rootPart)
+    {
+        Debug.Log("PWBFuelBalancerAddon::BuildBalancerList");
+        // Clear out the current list of balancers
+        this.listFuelBalancers.Clear();
+
+        // Build a new list
+        ProcessPart(rootPart);
+
+        Debug.Log("Count of new list of Balancers: " + listFuelBalancers.Count);
+    }
+
+    private void ProcessPart(Part p)
+    {
+        Debug.Log("PWBFuelBalancerAddon::ProcessPart");
+
+        foreach (ModulePWBFuelBalancer balancer in p.Modules.OfType<ModulePWBFuelBalancer>())
+        {
+            this.listFuelBalancers.Add(balancer);
+        }
+
+        foreach (Part child in p.children)
+        {
+            ProcessPart(child);
+        }
+    }
+
+    // This event is fired when the vessel is changed. If this happens we need to rebuild the list of balancers in the vessel.
+    private void OnVesselChange(Vessel data)
+    {
+        //Debug.Log("Calling BuildBalancerList from OnVesselChange");
+        this.BuildBalancerList(data);
+    }
+
+    private void OnVesselWasModified(Vessel data)
+    {
+        //Debug.Log("Calling RebuildCLSVessel from OnVesselWasModified");
+
+        this.BuildBalancerList(data);
+    }
+
+    private void OnFlightReady()
+    {
+        // Now build the list of balancers
+        //Debug.Log("Calling BuildBalancerList from onFlightReady");
+        this.BuildBalancerList();
+    }
+
+    private void OnVesselLoaded(Vessel data)
+    {
+        //Debug.Log("Calling BuildBalancerList from OnVesselLoaded");
+        this.BuildBalancerList();
+    }
+}
+
 
 class PartAndResource
 {
@@ -33,6 +424,7 @@ public class ModulePWBFuelBalancer : PartModule
     public GameObject ActualCoMMarker;
     private bool markerVisible;
     private bool started = false; // used to tell if we are set up and good to go. The Update method will check this know if it is a good idea to try to go anything or not.
+    DateTime lastKeyInputTime;
 
     [KSPField]
     public string setMassKey = "m";
@@ -41,6 +433,9 @@ public class ModulePWBFuelBalancer : PartModule
     
     [KSPField(isPersistant = true)]
     public UnityEngine.Vector3 vecFuelBalancerCoMTarget;
+
+    [KSPField(isPersistant = true)]
+    public String balancerName = "PWBFuelBalancer";
 
     [KSPField(isPersistant = true)]
     public UnityEngine.Quaternion rotationInEditor;
@@ -166,7 +561,9 @@ public class ModulePWBFuelBalancer : PartModule
         osd = new OSD();
         fStartingMoveAmount = 1; // TODO change this to reflect flow rates and the physics frame rate
         SavedCoMMarker = null; // marker to display the saved location
-        
+
+        this.lastKeyInputTime = DateTime.Now;
+
         this.CreateSavedComMarker();
 
         this.started = true;
@@ -234,33 +631,6 @@ public class ModulePWBFuelBalancer : PartModule
                     }
                 }
             }
-
-            // While we are here - does the marker object exisit, and is it all OK? Only bother checking if the marker should be visible.
-            /*
-            if(this.markerVisible)
-            {
-                if (null == this.SavedCoMMarker)
-                {
-                    print("Warning - Saved CoM marker gameobject is null");
-                }
-                else
-                {
-                    if (false == this.SavedCoMMarker.activeSelf)
-                    {
-                        // The marker is not active, should it be?
-                        if (this.markerVisible)
-                        {
-                            print("Warning, the CoM marker should be visible, but it is set to inactive");
-                        }
-                    }
-
-                    if (this.SavedCoMMarker.layer != 17)
-                    {
-                        print("warning, CoM marker should be in layer 17, but is not. Layer:" + this.SavedCoMMarker.layer);
-                    }
-                }
-            }
-            */
         }
     }
 
@@ -339,48 +709,19 @@ public class ModulePWBFuelBalancer : PartModule
         {
             if (part.isConnected && Input.GetKey(setMassKey))
             {
-                // We are depending on the CoM indicator for the locaiton of the CoM which is a bit rubbish :( There ust be a better way of doing this!
-                EditorMarker_CoM CoM = (EditorMarker_CoM)GameObject.FindObjectOfType(typeof(EditorMarker_CoM));
-                if (CoM == null)
+                if (DateTime.Now > this.lastKeyInputTime.AddMilliseconds(100))
                 {
-                    // There is no CoM indicator. Spawn an instruction screen or something
-                    osd.Error("To set the target CoM, first turn on the CoM Marker");
+                    this.lastKeyInputTime = DateTime.Now;
+                    this.SetCoMTarget();
                 }
-                else
-                {
-                    // get the location of the centre of mass
-                    //print("Com position: " + CoM.transform.position);
-                    Vector3 vecCom = CoM.transform.position;
-                    //print("vecCom: " + vecCom);
-
-                    this.rotationInEditor = part.transform.rotation;
-                    //print("Part position: " + part.transform.position);
-                    Vector3 vecPartLocation = part.transform.position;
-                    //print("vecPartLocation: " + vecPartLocation);
-
-                    // What really interests us is the location fo the CoM relative to the part that is the balancer 
-                    this.vecFuelBalancerCoMTarget = vecCom - vecPartLocation;
-                    //print("vecFuelBalancerCoMTarget: " + this.vecFuelBalancerCoMTarget + "rotationInEditor: " + this.rotationInEditor);
-
-                    // Set up the marker if we have not already done this.
-                    if (null == this.SavedCoMMarker)
-                    {
-                        //print("Setting up the CoM marker - this should have happened on Startup!");
-                        this.CreateSavedComMarker();
-                    }
-
-                    osd.Success("The CoM has been set");
-
-                    // TODO remove - Diagnostics
-                    {
-                        print("EditorLogic.VesselRotation : " + EditorLogic.VesselRotation);
-                    }
-                } 
-                //print("Setting the targetCoM location for fuel balancing.");
             }
             else if(part.isConnected && Input.GetKey(displayMarker))
             {
-                this.ToggleMarker();
+                if (DateTime.Now > this.lastKeyInputTime.AddMilliseconds(100))
+                {
+                    this.lastKeyInputTime = DateTime.Now;
+                    this.ToggleMarker();
+                }
             }
         }
     }
@@ -428,6 +769,49 @@ public class ModulePWBFuelBalancer : PartModule
             }
         }
     }
+
+    private void SetCoMTarget()
+    {
+        // We are depending on the CoM indicator for the location of the CoM which is a bit rubbish :( There ust be a better way of doing this!
+        EditorMarker_CoM CoM = (EditorMarker_CoM)GameObject.FindObjectOfType(typeof(EditorMarker_CoM));
+        if (CoM == null)
+        {
+            // There is no CoM indicator. Spawn an instruction screen or something
+            osd.Error("To set the target CoM, first turn on the CoM Marker");
+        }
+        else
+        {
+            // get the location of the centre of mass
+            //print("Com position: " + CoM.transform.position);
+            Vector3 vecCom = CoM.transform.position;
+            //print("vecCom: " + vecCom);
+
+            this.rotationInEditor = part.transform.rotation;
+            //print("Part position: " + part.transform.position);
+            Vector3 vecPartLocation = part.transform.position;
+            //print("vecPartLocation: " + vecPartLocation);
+
+            // What really interests us is the location fo the CoM relative to the part that is the balancer 
+            this.vecFuelBalancerCoMTarget = vecCom - vecPartLocation;
+            //print("vecFuelBalancerCoMTarget: " + this.vecFuelBalancerCoMTarget + "rotationInEditor: " + this.rotationInEditor);
+
+            // Set up the marker if we have not already done this.
+            if (null == this.SavedCoMMarker)
+            {
+                //print("Setting up the CoM marker - this should have happened on Startup!");
+                this.CreateSavedComMarker();
+            }
+
+            osd.Success("The CoM has been set");
+
+            // TODO remove - Diagnostics
+            {
+                print("EditorLogic.VesselRotation : " + EditorLogic.VesselRotation);
+            }
+        }
+        //print("Setting the targetCoM location for fuel balancing.");
+    }
+
 
     private void CreateSavedComMarker()
     {
@@ -675,11 +1059,15 @@ public class ModulePWBFuelBalancer : PartModule
   
     public void OnGUI()
     {
-        EditorLogic editor = EditorLogic.fetch;
-        if (editor == null) return;
-        if (editor.editorScreen != EditorLogic.EditorScreen.Parts) return;
-
-        osd.Update();
+        if (HighLogic.LoadedSceneIsEditor)
+        {
+            EditorLogic editor = EditorLogic.fetch;
+            if (editor == null) return;
+            if (editor.editorScreen == EditorScreen.Parts)
+            {
+                osd.Update();
+            }
+        }
     }
 }
 
@@ -888,3 +1276,141 @@ public class MarkerCam_Behaviour : MonoBehaviour
     }
 }
 
+
+public static class GuiUtils
+{
+    static GUIStyle _yellowOnHover;
+    public static GUIStyle yellowOnHover
+    {
+        get
+        {
+            if (_yellowOnHover == null)
+            {
+                _yellowOnHover = new GUIStyle(GUI.skin.label);
+                _yellowOnHover.hover.textColor = Color.yellow;
+                Texture2D t = new Texture2D(1, 1);
+                t.SetPixel(0, 0, new Color(0, 0, 0, 0));
+                t.Apply();
+                _yellowOnHover.hover.background = t;
+            }
+            return _yellowOnHover;
+        }
+    }
+
+
+    // Code blagged directly out of MechJeb - Credit where it is due!
+    public class ComboBox
+    {
+        // Easy to use combobox class
+        // ***** For users *****
+        // Call the Box method with the latest selected item, list of text entries
+        // and an object identifying who is making the request.
+        // The result is the newly selected item.
+        // There is currently no way of knowing when a choice has been made
+
+        // Position of the popup
+        private static Rect rect;
+        // Identifier of the caller of the popup, null if nobody is waiting for a value
+        private static object popupOwner = null;
+        private static string[] entries;
+        private static bool popupActive;
+        // Result to be returned to the owner
+        private static int selectedItem;
+        // Unity identifier of the window, just needs to be unique
+        private static int id = GUIUtility.GetControlID(FocusType.Passive);
+        // ComboBox GUI Style
+        private static GUIStyle style;
+
+        static ComboBox()
+        {
+            Texture2D background = new Texture2D(16, 16, TextureFormat.RGBA32, false);
+            background.wrapMode = TextureWrapMode.Clamp;
+
+            for (int x = 0; x < background.width; x++)
+                for (int y = 0; y < background.height; y++)
+                {
+                    if (x == 0 || x == background.width - 1 || y == 0 || y == background.height - 1)
+                        background.SetPixel(x, y, new Color(0, 0, 0, 1));
+                    else
+                        background.SetPixel(x, y, new Color(0.05f, 0.05f, 0.05f, 0.95f));
+                }
+
+            background.Apply();
+
+            style = new GUIStyle(GUI.skin.window);
+            style.normal.background = background;
+            style.onNormal.background = background;
+            style.border.top = style.border.bottom;
+            style.padding.top = style.padding.bottom;
+        }
+
+        public static void DrawGUI()
+        {
+            Debug.Log("popupActive: " + popupActive);
+
+            if (popupOwner == null || rect.height == 0 || !popupActive)
+                return;
+
+            // Make sure the rectangle is fully on screen
+            rect.x = Math.Max(0, Math.Min(rect.x, Screen.width - rect.width));
+            rect.y = Math.Max(0, Math.Min(rect.y, Screen.height - rect.height));
+
+            rect = GUILayout.Window(id, rect, identifier =>
+                {
+                    selectedItem = GUILayout.SelectionGrid(-1, entries, 1, yellowOnHover);
+                    if (GUI.changed)
+                        popupActive = false;
+                }, "", style);
+
+            //Cancel the popup if we click outside
+            if (Event.current.type == EventType.MouseDown && !rect.Contains(Event.current.mousePosition))
+                popupOwner = null;
+        }
+
+        public static int Box(int selectedItem, string[] entries, object caller)
+        {
+            // Trivial cases (0-1 items)
+            if (entries.Length == 0)
+                return 0;
+            if (entries.Length == 1)
+            {
+                GUILayout.Label(entries[0]);
+                return 0;
+            }
+
+            // A choice has been made, update the return value
+            if (popupOwner == caller && !ComboBox.popupActive)
+            {
+                popupOwner = null;
+                selectedItem = ComboBox.selectedItem;
+                GUI.changed = true;
+            }
+
+            bool guiChanged = GUI.changed;
+            if (GUILayout.Button("↓ " + entries[selectedItem] + " ↓"))
+            {
+                // We will set the changed status when we return from the menu instead
+                GUI.changed = guiChanged;
+                // Update the global state with the new items
+                popupOwner = caller;
+                popupActive = true;
+                ComboBox.entries = entries;
+                // Magic value to force position update during repaint event
+                rect = new Rect(0, 0, 0, 0);
+            }
+            // The GetLastRect method only works during repaint event, but the Button will return false during repaint
+            if (Event.current.type == EventType.Repaint && popupOwner == caller && rect.height == 0)
+            {
+                rect = GUILayoutUtility.GetLastRect();
+                // But even worse, I can't find a clean way to convert from relative to absolute coordinates
+                Vector2 mousePos = Input.mousePosition;
+                mousePos.y = Screen.height - mousePos.y;
+                Vector2 clippedMousePos = Event.current.mousePosition;
+                rect.x = (rect.x + mousePos.x) - clippedMousePos.x;
+                rect.y = (rect.y + mousePos.y) - clippedMousePos.y;
+            }
+
+            return selectedItem;
+        }
+    }
+}
