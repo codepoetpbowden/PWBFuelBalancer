@@ -53,7 +53,7 @@ public class PWBFuelBalancerAddon : MonoBehaviour
 
     public void Start()
     {
-        Debug.Log("PWBFuelBalancerAddon:Start");
+        //Debug.Log("PWBFuelBalancerAddon:Start");
 
         windowStyle = new GUIStyle(HighLogic.Skin.window);
 
@@ -191,20 +191,24 @@ public class PWBFuelBalancerAddon : MonoBehaviour
 
                 foreach (ModulePWBFuelBalancer balancer in this.listFuelBalancers)
                 {
-                    strings.Add(balancer.balancerName + " position:" + balancer.vecFuelBalancerCoMTarget.ToString());
+                    strings.Add(balancer.balancerName);// + " position:" + balancer.vecFuelBalancerCoMTarget.ToString());
                     //              GUILayout.Label(balancer.name + " position:" + balancer.vecFuelBalancerCoMTarget.ToString());
                 }
 
                 this.selectedBalancer = GuiUtils.ComboBox.Box(this.selectedBalancer, strings.ToArray(), this);
 
+
+                // It will be useful to have a reference to the selected balancer
+                ModulePWBFuelBalancer selBal = this.listFuelBalancers[this.selectedBalancer];
+
                 // Provide a facility to change the name of the balancer
                 {
-                    String oldName = this.listFuelBalancers[this.selectedBalancer].balancerName;
+                    String oldName = selBal.balancerName;
                     String newName = GUILayout.TextField(oldName);
 
                     if (oldName != newName)
                     {
-                        this.listFuelBalancers[this.selectedBalancer].balancerName = newName;
+                        selBal.balancerName = newName;
                     }
                 }
                 GUILayout.BeginHorizontal();
@@ -212,23 +216,23 @@ public class PWBFuelBalancerAddon : MonoBehaviour
                 GUILayout.BeginVertical();
                 if (GUILayout.Button("up"))
                 {
-                    this.listFuelBalancers[this.selectedBalancer].vecFuelBalancerCoMTarget.y += 0.05f;
+                    selBal.vecFuelBalancerCoMTarget.y += 0.05f;
                 }
                 if (GUILayout.Button("down"))
                 {
-                    this.listFuelBalancers[this.selectedBalancer].vecFuelBalancerCoMTarget.y -= 0.05f;
+                    selBal.vecFuelBalancerCoMTarget.y -= 0.05f;
                 }
                 GUILayout.EndVertical();
                 GUILayout.BeginVertical();
 
                 if (GUILayout.Button("forward"))
                 {
-                    this.listFuelBalancers[this.selectedBalancer].vecFuelBalancerCoMTarget.x += 0.05f;
+                    selBal.vecFuelBalancerCoMTarget.x += 0.05f;
                 }
 
                 if (GUILayout.Button("back"))
                 {
-                    this.listFuelBalancers[this.selectedBalancer].vecFuelBalancerCoMTarget.x -= 0.05f;
+                    selBal.vecFuelBalancerCoMTarget.x -= 0.05f;
                 }
 
                 GUILayout.EndVertical();
@@ -237,14 +241,67 @@ public class PWBFuelBalancerAddon : MonoBehaviour
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("left"))
                 {
-                    this.listFuelBalancers[this.selectedBalancer].vecFuelBalancerCoMTarget.z += 0.05f;
+                    selBal.vecFuelBalancerCoMTarget.z += 0.05f;
                 }
                 if (GUILayout.Button("right"))
                 {
-                    this.listFuelBalancers[this.selectedBalancer].vecFuelBalancerCoMTarget.z -= 0.05f;
+                    selBal.vecFuelBalancerCoMTarget.z -= 0.05f;
+                }
+                GUILayout.EndHorizontal();
+
+                {
+                    String toggleText;
+                    if(selBal.markerVisible)
+                    {
+                        toggleText = "Hide Marker";
+                    }
+                    else
+                    {
+                        toggleText = "Show Marker";
+                    }
+
+                    if (GUILayout.Button(toggleText))
+                    {
+                        selBal.ToggleMarker();
+                    }
+                }
+                
+                
+                // Save slot 1
+                GUILayout.BeginHorizontal();
+
+                selBal.Save1Name = GUILayout.TextField(selBal.Save1Name);
+                
+                if (GUILayout.Button("Load"))
+                {
+                    selBal.vecFuelBalancerCoMTarget = selBal.vecSave1CoMTarget;
+                }
+
+                if (GUILayout.Button("Save"))
+                {
+                    selBal.vecSave1CoMTarget = selBal.vecFuelBalancerCoMTarget;
+                }
+                GUILayout.EndHorizontal();
+
+                // Save slot 2
+                GUILayout.BeginHorizontal();
+                selBal.Save2Name = GUILayout.TextField(selBal.Save2Name);
+
+                if (GUILayout.Button("Load"))
+                {
+                    selBal.vecFuelBalancerCoMTarget = selBal.vecSave2CoMTarget;
+                }
+
+                if (GUILayout.Button("Save"))
+                {
+                    selBal.vecSave2CoMTarget = selBal.vecFuelBalancerCoMTarget;
                 }
 
                 GUILayout.EndHorizontal();
+
+
+
+
                 GUILayout.EndVertical();
             }
             GUI.DragWindow();
@@ -339,19 +396,19 @@ public class PWBFuelBalancerAddon : MonoBehaviour
     // Builds a list of off the ModulePWBFuelBalancers in the whole of the current vessel.
     private void BuildBalancerList(Part rootPart)
     {
-        Debug.Log("PWBFuelBalancerAddon::BuildBalancerList");
+        //Debug.Log("PWBFuelBalancerAddon::BuildBalancerList");
         // Clear out the current list of balancers
         this.listFuelBalancers.Clear();
 
         // Build a new list
         ProcessPart(rootPart);
 
-        Debug.Log("Count of new list of Balancers: " + listFuelBalancers.Count);
+        //Debug.Log("Count of new list of Balancers: " + listFuelBalancers.Count);
     }
 
     private void ProcessPart(Part p)
     {
-        Debug.Log("PWBFuelBalancerAddon::ProcessPart");
+        //Debug.Log("PWBFuelBalancerAddon::ProcessPart");
 
         foreach (ModulePWBFuelBalancer balancer in p.Modules.OfType<ModulePWBFuelBalancer>())
         {
@@ -411,8 +468,6 @@ public class PWBKSPFuelBalancer : ModulePWBFuelBalancer
   
 public class ModulePWBFuelBalancer : PartModule
 {
-
-    
     System.Collections.ArrayList tanks;
     int iNextSourceTank;
     int iNextDestinationTank;
@@ -422,7 +477,7 @@ public class ModulePWBFuelBalancer : PartModule
     private OSD osd;
     public  GameObject SavedCoMMarker;
     public GameObject ActualCoMMarker;
-    private bool markerVisible;
+    public bool markerVisible;
     private bool started = false; // used to tell if we are set up and good to go. The Update method will check this know if it is a good idea to try to go anything or not.
     DateTime lastKeyInputTime;
 
@@ -430,12 +485,24 @@ public class ModulePWBFuelBalancer : PartModule
     public string setMassKey = "m";
     [KSPField]
     public string displayMarker = "d";
-    
+   
     [KSPField(isPersistant = true)]
     public UnityEngine.Vector3 vecFuelBalancerCoMTarget;
 
     [KSPField(isPersistant = true)]
     public String balancerName = "PWBFuelBalancer";
+
+    [KSPField(isPersistant = true)]
+    public String Save1Name = "Save1";
+    
+    [KSPField(isPersistant = true)]
+    public UnityEngine.Vector3 vecSave1CoMTarget;
+
+    [KSPField(isPersistant = true)]
+    public String Save2Name = "Save2";
+
+    [KSPField(isPersistant = true)]
+    public UnityEngine.Vector3 vecSave2CoMTarget;
 
     [KSPField(isPersistant = true)]
     public UnityEngine.Quaternion rotationInEditor;
@@ -445,7 +512,7 @@ public class ModulePWBFuelBalancer : PartModule
 
     [KSPField(isPersistant = false, guiActive = true, guiName = "CoM Error", guiUnits="m" , guiFormat="f3")]
     public float fComError;
-
+    
     [KSPAction("Balance Fuel Tanks")]
     public void BalanceFuelAction(KSPActionParam param) 
     { 
@@ -555,7 +622,6 @@ public class ModulePWBFuelBalancer : PartModule
     /// </summary>
     public override void OnStart(StartState state)
     {
-        print("PWBFueBalancer::OnStart");
         // Set the status to be deactivated
         Status = "Deactivated";
         osd = new OSD();
@@ -664,7 +730,7 @@ public class ModulePWBFuelBalancer : PartModule
     /// <param name='node'>The node to load from</param>
     public override void OnLoad(ConfigNode node)
     {
-        print("PWBKSPFueBalancer::OnLoad");
+        //print("PWBKSPFueBalancer::OnLoad");
 
         // For now just dump out what the Config nodes are...
         dumpConfigNode(node);
@@ -673,23 +739,23 @@ public class ModulePWBFuelBalancer : PartModule
         if (!node.values.Contains("rotationInEditor"))
         {
             // rotationInEditor does not exist - must be a v0.0.3 craft. We need to upgrade it.
-            print("rotationInEditor was not set.");
+            //print("rotationInEditor was not set.");
             // Only bother to upgrade if we are in flight. If we are in the VAB/SPH then the user can fix the CoM themselves (or just lauch)
             if (HighLogic.LoadedSceneIsFlight)
             {
                 // TODO remove diagnostic
                 {
                     // I am suspicious that on loading the vessel rotation is not properly set. Let us check
-                    print("In onload this.vessel.transform.rotation" + this.vessel.transform.rotation);
+                    //print("In onload this.vessel.transform.rotation" + this.vessel.transform.rotation);
                 }
                 this.rotationInEditor = this.part.transform.rotation * Quaternion.Inverse(this.vessel.transform.rotation);
-                print("rotationInEditor was not set. In flight it has been set to: " + this.rotationInEditor);
+                //print("rotationInEditor was not set. In flight it has been set to: " + this.rotationInEditor);
 
             }
             else if(HighLogic.LoadedSceneIsEditor)
             {
                 this.rotationInEditor = this.part.transform.rotation * Quaternion.Inverse(EditorLogic.VesselRotation);
-                print("rotationInEditor was not set. In the editor it has been set to: " + this.rotationInEditor);
+                //print("rotationInEditor was not set. In the editor it has been set to: " + this.rotationInEditor);
 
             }
 
@@ -760,12 +826,12 @@ public class ModulePWBFuelBalancer : PartModule
         {
             if (HighLogic.LoadedSceneIsFlight)
             {
-                print("vessel.transform.rotation : " + this.vessel.transform.rotation);
-                print("vessel.ReferenceTransform.rotation : " + this.vessel.ReferenceTransform.rotation);
-                print("vessel.transform.rotation .eulerAngles: " + this.vessel.transform.rotation.eulerAngles);
-                print("vessel.upaxis : " + this.vessel.upAxis);
+                //print("vessel.transform.rotation : " + this.vessel.transform.rotation);
+                //print("vessel.ReferenceTransform.rotation : " + this.vessel.ReferenceTransform.rotation);
+                //print("vessel.transform.rotation .eulerAngles: " + this.vessel.transform.rotation.eulerAngles);
+                //print("vessel.upaxis : " + this.vessel.upAxis);
 
-                print("upaxis: " + (Vector3)(Quaternion.Inverse(this.vessel.transform.rotation) *this.vessel.upAxis ));
+                //print("upaxis: " + (Vector3)(Quaternion.Inverse(this.vessel.transform.rotation) *this.vessel.upAxis ));
             }
         }
     }
@@ -806,7 +872,7 @@ public class ModulePWBFuelBalancer : PartModule
 
             // TODO remove - Diagnostics
             {
-                print("EditorLogic.VesselRotation : " + EditorLogic.VesselRotation);
+                //print("EditorLogic.VesselRotation : " + EditorLogic.VesselRotation);
             }
         }
         //print("Setting the targetCoM location for fuel balancing.");
@@ -869,7 +935,7 @@ public class ModulePWBFuelBalancer : PartModule
                     // Start the marker visible if it has been set to be visible, or hidden if it is set to be hidden
                     ActualCoMMarker.SetActive(this.markerVisible);
 
-                    print("MarkerCam has cullingMask: " + markerCam.cullingMask + " setting marker to be in layer: " + layer);
+                    //print("MarkerCam has cullingMask: " + markerCam.cullingMask + " setting marker to be in layer: " + layer);
                     ActualCoMMarker.layer = layer;
                 }
 
@@ -877,7 +943,7 @@ public class ModulePWBFuelBalancer : PartModule
             else
             {
                 // No camera - no point in setting up the object, Perhaps there will be another oppertunity.
-                print("Warning - could not find the markerCam, It is probably best not to create the marker object as we do not know which layer to place it in anyway");
+                //print("Warning - could not find the markerCam, It is probably best not to create the marker object as we do not know which layer to place it in anyway");
             }
         }
     }
@@ -1141,7 +1207,7 @@ public class SavedCoM_Marker : MonoBehaviour
 
     public void LinkPart(ModulePWBFuelBalancer newPart)
     {
-        print("Linking part");
+        //print("Linking part");
         _linkedPart = newPart;
     }
 
@@ -1166,7 +1232,7 @@ public class PWBCoM_Marker : MonoBehaviour
 
     public void LinkPart(ModulePWBFuelBalancer newPart)
     {
-        print("Linking part");
+        //print("Linking part");
         _linkedPart = newPart;
     }
 
@@ -1346,7 +1412,7 @@ public static class GuiUtils
 
         public static void DrawGUI()
         {
-            Debug.Log("popupActive: " + popupActive);
+            //Debug.Log("popupActive: " + popupActive);
 
             if (popupOwner == null || rect.height == 0 || !popupActive)
                 return;
