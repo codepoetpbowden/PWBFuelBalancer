@@ -9,12 +9,10 @@ There is also a GUI that can be activated via the app launcher that allows to th
 Release History:
 
 0.1.2
-* test version by Skalou
-
-* reworked the PWBcontrol.mu part.
+* reworked the PWBControlBox.mu model.
 * reworked the spheres modeles for the 3D CoM markers and textures.
 * converted the textures to DDS to save RAM in increase the loading time.
-* updated  the .cfg to KSP 1.0.5 and tweaked the parameters for carrer mode.
+* updated  the .cfg to KSP 1.0.5 and tweaked the parameters for carrer mode (drag, mass ,cost, tech-tree node).
 
 0.1.1
 * Added display/hide target marker to the UI
