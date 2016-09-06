@@ -1,0 +1,4 @@
+Install instructions for PWB Fuel Balancer
+
+1) Be sure to delete any previous installs of PWB Fuel Balancer (in the GameData/PWBFuelBalancer folder)
+2) copy GamaData to your KSP install directory.

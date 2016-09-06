@@ -1,5 +1,8 @@
-PWB Fuel Balancer for KSP 1.0.5.1028
-version 0.1.2
+PWB Fuel Balancer for KSP 1.1.3
+Original Author:  codepoet  All credit goes to him!
+Current Author: Papa_Joe
+
+version 0.1.3.0
 
 The PWB Fuel Balancer allows an optimum location for the Center of Mass of a vessel to be set in the VAB or SPH and then for fuel to be pumped between tanks in flight in order to move the CoM back to that location when they are part full. This is intended to allow for perfect RSC control, allowing for rotation without translation and translation without rotation, assuming that the RCS thrusters have been perfectly located with reference to the CoM location. It is recommended that you also use the RCS Build Aid mod to exactly location the RCS thrusters. It has also been found to be useful for helping spaceplanes maintain balance as they consume fuel.
 It is possible to display a (green) marker to indicate the centre of mass in the VAB/SPH by mousing over the part and pressing D. Set the optimum CoM location buy turning of CoM in the VAB/SPH, mousong over the part and pressing M.
@@ -7,6 +10,11 @@ You can display the CoM marker and optimum CoM marker inflight by right clicking
 There is also a GUI that can be activated via the app launcher that allows to the manual positioning of the CoM target, both in the VAB and in flight.
 
 Release History:
+0.1.3.0
+* Support of mod changed hands to Papa_Joe from codePoet.  
+* Updated to be compatible with KSP 1.1.3
+* Restrucutred solution to allow for automated build and deploy
+* Refactored to improve performance, reduce garbage collection, and use explicit typing.
 
 0.1.2
 * reworked the PWBControlBox.mu model.
@@ -51,4 +59,10 @@ Release History:
 
 
 
-Bug reports, suggestions and comments are welcome at pbowden@codepoet.org.uk Source code will be available in a future release.
+Bug reports, suggestions and comments are welcome at:
+https://github.com/codepoetpbowden/PWBFuelBalancer/issues
+Or:
+http://forum.kerbalspaceprogram.com/index.php?/topic/147144-105-pwb-fuel-balancer-113-version-coming-soon/ 
+
+Source code is available on Github here:
+https://github.com/codepoetpbowden/PWBFuelBalancer
