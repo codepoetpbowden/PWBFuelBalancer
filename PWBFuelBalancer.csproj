@@ -82,7 +82,7 @@
     <None Include="Distribution\GameData\PWBFuelBalancer\Assets\PWBTargetComMarker.mu" />
     <None Include="Distribution\GameData\PWBFuelBalancer\Parts\PWBFuelBalancer\part.cfg" />
     <None Include="Distribution\GameData\PWBFuelBalancer\Parts\PWBFuelBalancer\PWBControlBox.mu" />
-    <None Include="Distribution\README.md" />
+    <None Include="README.md" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
