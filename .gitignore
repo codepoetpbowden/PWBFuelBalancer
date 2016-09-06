@@ -1,3 +1,5 @@
 Assets/Thumbs.db
 *.db
 *.db
+bin
+obj
