@@ -34,3 +34,4 @@ D:\KSP\Mods\PJS\Git\Source\PWBFuelBalancer\bin\Debug\Mono.Security.dll
 D:\KSP\Mods\PJS\Git\Source\PWBFuelBalancer\bin\Debug\UnityEngine.xml
 D:\KSP\Mods\PJS\Git\Source\PWBFuelBalancer\obj\Debug\PWBFuelBalancer.dll
 D:\KSP\Mods\PJS\Git\Source\PWBFuelBalancer\obj\Debug\PWBFuelBalancer.pdb
+D:\KSP\Mods\PJS\Git\Source\PWBFuelBalancer\obj\Debug\PWBFuelBalancer.csprojResolveAssemblyReference.cache

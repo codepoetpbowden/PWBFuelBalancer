@@ -40,8 +40,17 @@
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="GuiUtils.cs" />
+    <Compile Include="InFlightMarkerCam.cs" />
+    <Compile Include="MarkerCamBehaviour.cs" />
+    <Compile Include="ModulePWBFuelBalancer.cs" />
+    <Compile Include="Osd.cs" />
+    <Compile Include="PartAndResource.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="PWBFuelBalancer.cs" />
+    <Compile Include="PwbcoMMarker.cs" />
+    <Compile Include="PWBFuelBalancerAddon.cs" />
+    <Compile Include="PwbkspFuelBalancer.cs" />
+    <Compile Include="SavedCoMMarker.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
@@ -59,6 +68,10 @@
     <Reference Include="System.Data.Linq" />
     <Reference Include="UnityEngine">
       <HintPath>..\..\..\..\..\..\..\Games\SteamLibrary\steamapps\common\Kerbal Space Program\KSP_x64_Data\Managed\UnityEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UI, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\Games\SteamLibrary\steamapps\common\Kerbal Space Program\KSP_x64_Data\Managed\UnityEngine.UI.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
