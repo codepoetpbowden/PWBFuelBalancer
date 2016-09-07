@@ -14,13 +14,14 @@ Release History:
 * Support of mod changed hands to Papa_Joe from codePoet.  
 * Updated to be compatible with KSP 1.1.3
 * Restrucutred solution to allow for automated build and deploy
-* Refactored to improve performance, reduce garbage collection, and use explicit typing.
+* Refactored code to improve organization, performance, reduce garbage collection, and use explicit typing.
+* Got rid of the "horrible" fixedUpdate editorpartcount methodology.  implemented OnEditorShipModified for event driven handling of vessel part count changes. (codepoet knows what I mean :) )
 
 0.1.2
 * reworked the PWBControlBox.mu model.
 * reworked the spheres modeles for the 3D CoM markers and textures.
 * converted the textures to DDS to save RAM in increase the loading time.
-* updated  the .cfg to KSP 1.0.5 and tweaked the parameters for carrer mode (drag, mass ,cost, tech-tree node).
+* updated  the .cfg to KSP 1.0.5 and tweaked the parameters for career mode (drag, mass ,cost, tech-tree node).
 
 0.1.1
 * Added display/hide target marker to the UI
