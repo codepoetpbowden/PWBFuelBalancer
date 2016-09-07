@@ -11,7 +11,9 @@ namespace PWBFuelBalancer
     // The Addon on keeps a reference to all the PWBFuelBalancers in the current vessel. If the current vessel changes or is modified then this list will need to be rebuilt.
     private List<ModulePWBFuelBalancer> _listFuelBalancers;
 
-    private static Rect _windowPosition = new Rect(0, 0, 360, 480);
+    private static Rect _windowPositionEditor = new Rect(265, 90, 360, 480);
+    private static Rect _windowPositionFlight = new Rect(150, 50, 360, 480);
+    private static Rect _currentWindowPosition;
     private static GUIStyle _windowStyle;
     private bool _weLockedInputs;
 
@@ -19,7 +21,7 @@ namespace PWBFuelBalancer
 
     private bool _visable;
 
-    private int _editorPartCount; // This is horrible. Because there does not seem to be an obvious callback to sink when parts are added and removed in the editor, on each fixed update we will could the parts and if it has changed then rebuild the balancer list. Yuk!
+    private int _editorPartCount; 
 
     private int _selectedBalancer;
 
@@ -53,7 +55,7 @@ namespace PWBFuelBalancer
     public void Start()
     {
       //Debug.Log("PWBFuelBalancerAddon:Start");
-
+      _currentWindowPosition = HighLogic.LoadedSceneIsEditor ? _windowPositionEditor : _windowPositionFlight;
       _windowStyle = new GUIStyle(HighLogic.Skin.window);
 
       if (!HighLogic.LoadedSceneIsEditor && !HighLogic.LoadedSceneIsFlight) return;GameEvents.onVesselWasModified.Add(OnVesselWasModified);
@@ -61,6 +63,17 @@ namespace PWBFuelBalancer
       GameEvents.onVesselLoaded.Add(OnVesselLoaded);
       GameEvents.onEditorShipModified.Add(OnEditorShipModified);
       GameEvents.onFlightReady.Add(OnFlightReady);
+      GameEvents.onGameSceneSwitchRequested.Add(OnGameSceneSwitchRequested);
+    }
+
+
+    private static void OnGameSceneSwitchRequested(GameEvents.FromToAction<GameScenes, GameScenes> action)
+    {
+      //This handles scene specific window positioning.  Soon I'll add persistence...
+      if (action.from == GameScenes.EDITOR) _windowPositionEditor = _currentWindowPosition;
+      else _windowPositionFlight = _currentWindowPosition;
+
+      _currentWindowPosition = action.to == GameScenes.EDITOR ? _windowPositionEditor : _windowPositionFlight;
     }
 
     private void OnGuiAppLauncherReady()
@@ -100,8 +113,7 @@ namespace PWBFuelBalancer
       {
         //Set the GUI Skin
         //GUI.skin = HighLogic.Skin;
-
-        _windowPosition = GUILayout.Window(947695, _windowPosition, OnWindow, "PWB Fuel Balancer", _windowStyle, GUILayout.MinHeight(20), GUILayout.MinWidth(100), GUILayout.ExpandHeight(true));
+        _currentWindowPosition = GUILayout.Window(947695, _currentWindowPosition, OnWindow, "PWB Fuel Balancer", _windowStyle, GUILayout.MinHeight(20), GUILayout.MinWidth(100), GUILayout.ExpandHeight(true));
       }
 
       GuiUtils.ComboBox.DrawGui();
@@ -114,7 +126,7 @@ namespace PWBFuelBalancer
     private bool MouseIsOverWindow()
     {
       return _visable
-             && _windowPosition.Contains(new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y));
+             && _currentWindowPosition.Contains(new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y));
     }
 
     //Lifted this more or less directly from the Kerbal Engineer source. Thanks cybutek!
@@ -148,6 +160,11 @@ namespace PWBFuelBalancer
     {
       try
       {
+        Rect rect = new Rect(_currentWindowPosition.width - 20, 4, 16, 16);
+        if (GUI.Button(rect, ""))
+        {
+          OnAppLaunchToggle();
+        }
         GUILayout.BeginVertical();
         List<string> strings = new List<string>();
 
@@ -306,6 +323,7 @@ namespace PWBFuelBalancer
       GameEvents.onVesselLoaded.Remove(OnVesselLoaded);
       GameEvents.onEditorShipModified.Remove(OnEditorShipModified);
       GameEvents.onFlightReady.Remove(OnFlightReady);
+      GameEvents.onGameSceneSwitchRequested.Remove(OnGameSceneSwitchRequested);
 
       // Remove the stock toolbar button
       GameEvents.onGUIApplicationLauncherReady.Remove(OnGuiAppLauncherReady);

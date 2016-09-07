@@ -16,6 +16,8 @@ Release History:
 * Restrucutred solution to allow for automated build and deploy
 * Refactored code to improve organization, performance, reduce garbage collection, and use explicit typing.
 * Got rid of the "horrible" fixedUpdate editorpartcount methodology.  implemented OnEditorShipModified for event driven handling of vessel part count changes. (codepoet knows what I mean :) )
+* Added close button to the upper right of the Fuel Balancer window.
+* Added scene specific window positioning. Editor now starts just to the right of the parts list.  Flight now starts a safe margin to the right of the staging tree.
 
 0.1.2
 * reworked the PWBControlBox.mu model.
