@@ -59,9 +59,6 @@
     <Reference Include="Assembly-CSharp-firstpass">
       <HintPath>..\..\..\..\..\..\..\Games\SteamLibrary\steamapps\common\Kerbal Space Program\KSP_x64_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
     </Reference>
-    <Reference Include="KSPUtil">
-      <HintPath>..\..\..\..\..\..\..\Games\SteamLibrary\steamapps\common\Kerbal Space Program\KSP_x64_Data\Managed\KSPUtil.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
@@ -95,9 +92,12 @@
     <None Include="Distribution\GameData\PWBFuelBalancer\Assets\PWBTargetComMarker.mu" />
     <None Include="Distribution\GameData\PWBFuelBalancer\Parts\PWBFuelBalancer\part.cfg" />
     <None Include="Distribution\GameData\PWBFuelBalancer\Parts\PWBFuelBalancer\PWBControlBox.mu" />
+    <None Include="Distribution\GameData\PWBFuelBalancer\PWBFuelBalancer.version" />
     <None Include="README.md" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="Distribution\GameData\PWBFuelBalancer\Plugins\PluginData\" />
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>@echo $(Targetname)

@@ -15,7 +15,7 @@ namespace PWBFuelBalancer
     private void LateUpdate()
     {
       if (null == _linkedPart) return;
-      transform.position = _linkedPart.vessel.findWorldCenterOfMass();
+      transform.position = _linkedPart.vessel.CoM;
       transform.rotation = _linkedPart.vessel.transform.rotation;
 
       // print("Actual CoM marker position has been set to: " + transform.position);

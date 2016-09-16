@@ -17,6 +17,7 @@ namespace PWBFuelBalancer
     public GameObject SavedCoMMarker;
     public GameObject ActualCoMMarker;
     public bool MarkerVisible;
+
     private bool _started; // used to tell if we are set up and good to go. The Update method will check this know if it is a good idea to try to go anything or not.
     private DateTime _lastKeyInputTime;
 
@@ -189,7 +190,7 @@ namespace PWBFuelBalancer
       // Only do this while in flight
       if (!HighLogic.LoadedSceneIsFlight) return;
       // Update the ComError (hopefully this will not kill our performance)
-      FComError = CalculateCoMFromTargetCoM(part.vessel.findWorldCenterOfMass());
+      FComError = CalculateCoMFromTargetCoM(part.vessel.CoM);
 
       if (Status == "Deactivated" || Status == "Balance not possible") return;
       if (FComError < 0.002)
@@ -321,15 +322,11 @@ namespace PWBFuelBalancer
       MarkerVisible = !MarkerVisible;
 
       // If we are in mapview then hide the marker
-      if (null != SavedCoMMarker)
-      {
-        SavedCoMMarker.SetActive(!MapView.MapIsEnabled && MarkerVisible);
-      }
+      if (SavedCoMMarker != null) SavedCoMMarker.SetActive(!MapView.MapIsEnabled && MarkerVisible);
 
-      if (null != ActualCoMMarker)
-      {
-        ActualCoMMarker.SetActive(!MapView.MapIsEnabled && MarkerVisible);
-      }
+      if (ActualCoMMarker != null) ActualCoMMarker.SetActive(!MapView.MapIsEnabled && MarkerVisible);
+
+      if (InFlightMarkerCam.MarkerCam != null) InFlightMarkerCam.MarkerCam.enabled = !MapView.MapIsEnabled && MarkerVisible;
 
       // TODO remove - Diagnostics
       {
@@ -391,19 +388,10 @@ namespace PWBFuelBalancer
     private void CreateSavedComMarker()
     {
 
-      // Do not try to create the marker is it already exisits
+      // Do not try to create the marker if it already exisits
       if (null != SavedCoMMarker) return;
       // First try to find the camera that will be used to display the marker - it needs a special camera to make it "float"
-      Camera markerCam = null;
-      IEnumerator cams = Camera.allCameras.GetEnumerator();
-      while (cams.MoveNext())
-      {
-        if (cams.Current == null) continue;
-        if (((Camera)cams.Current).name == "markerCam")
-        {
-          markerCam = ((Camera)cams.Current);
-        }
-      }
+      Camera markerCam = InFlightMarkerCam.GetMarkerCam();
 
       // Did we find the camera? If we did then set up the marker object, and idsplkay it via tha camera we found
       if (null == markerCam) return;
@@ -420,6 +408,7 @@ namespace PWBFuelBalancer
 
       // Start the marker visible if it has been set to be visible, or hidden if it is set to be hidden
       SavedCoMMarker.SetActive(MarkerVisible);
+      markerCam.enabled = MarkerVisible;
 
       int layer = (int)(Math.Log(markerCam.cullingMask) / Math.Log(2));
       // print("MarkerCam has cullingMask: " + markerCam.cullingMask + " setting marker to be in layer: " + layer);
@@ -468,9 +457,9 @@ namespace PWBFuelBalancer
     // Returns the new distance the CoM was moved towards its target
     public float MoveFuel()
     {
-      float fCoMStartingError = CalculateCoMFromTargetCoM(vessel.findWorldCenterOfMass());
+      float fCoMStartingError = CalculateCoMFromTargetCoM(vessel.CoM);
       float mass = vessel.GetTotalMass(); // Get total mass.
-      Vector3 oldWorldCoM = vessel.findWorldCenterOfMass();
+      Vector3 oldWorldCoM = vessel.CoM;
       float fOldCoMError = fCoMStartingError;
       bool moveMade = false;
       int iNumberofTanks = _tanks.Count;
@@ -498,7 +487,7 @@ namespace PWBFuelBalancer
 
             while (_iNextDestinationTank < iNumberofTanks && false == moveMade)
             {
-              //print("Considering moveing fuel to tank" + this.iNextDestinationTank);
+              //print("Considering moving fuel to tank" + this.iNextDestinationTank);
 
               PartResource resource2 = ((PartAndResource)_tanks[_iNextDestinationTank]).Resource;
               Part part2 = ((PartAndResource)_tanks[_iNextDestinationTank]).Part;

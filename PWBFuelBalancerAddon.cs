@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace PWBFuelBalancer
 {
-  [KSPAddon(KSPAddon.Startup.EveryScene, false)]
+  [KSPAddon(KSPAddon.Startup.FlightAndEditor, false)]
   public class PwbFuelBalancerAddon : MonoBehaviour
   {
     // The Addon on keeps a reference to all the PWBFuelBalancers in the current vessel. If the current vessel changes or is modified then this list will need to be rebuilt.
@@ -63,17 +63,17 @@ namespace PWBFuelBalancer
       GameEvents.onVesselLoaded.Add(OnVesselLoaded);
       GameEvents.onEditorShipModified.Add(OnEditorShipModified);
       GameEvents.onFlightReady.Add(OnFlightReady);
-      GameEvents.onGameSceneSwitchRequested.Add(OnGameSceneSwitchRequested);
+      GameEvents.onGameSceneLoadRequested.Add(OnGameSceneLoadRequested);
     }
 
 
-    private static void OnGameSceneSwitchRequested(GameEvents.FromToAction<GameScenes, GameScenes> action)
+    private void OnGameSceneLoadRequested(GameScenes scene)
     {
       //This handles scene specific window positioning.  Soon I'll add persistence...
-      if (action.from == GameScenes.EDITOR) _windowPositionEditor = _currentWindowPosition;
+      if (scene == GameScenes.EDITOR) _windowPositionEditor = _currentWindowPosition;
       else _windowPositionFlight = _currentWindowPosition;
 
-      _currentWindowPosition = action.to == GameScenes.EDITOR ? _windowPositionEditor : _windowPositionFlight;
+      _currentWindowPosition = scene == GameScenes.EDITOR ? _windowPositionEditor : _windowPositionFlight;
     }
 
     private void OnGuiAppLauncherReady()
@@ -323,7 +323,7 @@ namespace PWBFuelBalancer
       GameEvents.onVesselLoaded.Remove(OnVesselLoaded);
       GameEvents.onEditorShipModified.Remove(OnEditorShipModified);
       GameEvents.onFlightReady.Remove(OnFlightReady);
-      GameEvents.onGameSceneSwitchRequested.Remove(OnGameSceneSwitchRequested);
+      GameEvents.onGameSceneLoadRequested.Remove(OnGameSceneLoadRequested);
 
       // Remove the stock toolbar button
       GameEvents.onGUIApplicationLauncherReady.Remove(OnGuiAppLauncherReady);
@@ -360,15 +360,22 @@ namespace PWBFuelBalancer
     private void BuildBalancerList(List<Part> partList)
     {
       _listFuelBalancers.Clear();
+      _listFuelBalancers = GetBalancers(partList);
+    }
+
+    internal static List<ModulePWBFuelBalancer> GetBalancers(List<Part> partList)
+    {
+      List<ModulePWBFuelBalancer> modList = new List<ModulePWBFuelBalancer>();
       List<Part>.Enumerator iParts = partList.GetEnumerator();
       while (iParts.MoveNext())
       {
         if (iParts.Current == null) continue;
         if (iParts.Current.Modules.Contains<ModulePWBFuelBalancer>())
         {
-          _listFuelBalancers.AddRange(iParts.Current.Modules.GetModules<ModulePWBFuelBalancer>());
+          modList.AddRange(iParts.Current.Modules.GetModules<ModulePWBFuelBalancer>());
         }
       }
+      return modList;
     }
 
     // This event is fired when the vessel is changed. If this happens we need to rebuild the list of balancers in the vessel.
@@ -399,8 +406,8 @@ namespace PWBFuelBalancer
     }
     private void OnEditorShipModified(ShipConstruct vesselConstruct)
     {
-      if (vesselConstruct.Parts.Count == _editorPartCount) return;
       //Debug.Log("Calling BuildBalancerList from OnEditorShipModified");
+      if (vesselConstruct.Parts.Count == _editorPartCount) return;
       BuildBalancerList(vesselConstruct.Parts);
       _editorPartCount = vesselConstruct.parts.Count;
     }
