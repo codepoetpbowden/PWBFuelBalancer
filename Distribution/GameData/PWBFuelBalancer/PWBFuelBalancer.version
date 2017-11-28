@@ -1,22 +1,22 @@
 {
   "NAME": "PWBFuelBalancer",
   "URL":"http://ksp-avc.cybutek.net/version.php?id=345",
-  "DOWNLOAD":"https://github.com/codepoetpbowden/PWBFuelBalancer/releases/tag/0.1.4.1",
+  "DOWNLOAD":"https://github.com/codepoetpbowden/PWBFuelBalancer/releases/tag/0.1.4.2",
   "CHANGE_LOG_URL":"http://forum.kerbalspaceprogram.com/index.php?/topic/147144-113-pwb-fuel-balancer-revived-07-sep-2016/",
   "VERSION": {
     "MAJOR": 0,
     "MINOR": 1,
     "PATCH": 4,
-	  "BUILD": 1
+	  "BUILD": 2
   },
   "KSP_VERSION": {
     "MAJOR": 1,
     "MINOR": 2,
-    "PATCH": 0
+    "PATCH": 2
   },
   "KSP_VERSION_MIN": {
     "MAJOR": 1,
 	  "MINOR": 2,
-	  "PATCH": 0
+	  "PATCH": 1
   }
 }

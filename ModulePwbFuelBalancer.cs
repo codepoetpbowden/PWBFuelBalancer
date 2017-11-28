@@ -280,7 +280,8 @@ namespace PWBFuelBalancer
           // I am suspicious that on loading the vessel rotation is not properly set. Let us check
           //print("In onload this.vessel.transform.rotation" + this.vessel.transform.rotation);
         }
-        RotationInEditor = part.transform.rotation * Quaternion.Inverse(vessel.transform.rotation);
+        if (vessel != null)
+          RotationInEditor = part.transform.rotation * Quaternion.Inverse(vessel.transform.rotation);
         //print("rotationInEditor was not set. In flight it has been set to: " + this.rotationInEditor);
 
       }
@@ -344,7 +345,7 @@ namespace PWBFuelBalancer
 
     private void SetCoMTarget()
     {
-      // We are depending on the CoM indicator for the location of the CoM which is a bit rubbish :( There ust be a better way of doing this!
+      // We are depending on the CoM indicator for the location of the CoM which is a bit rubbish :( There must be a better way of doing this!
       EditorMarker_CoM coM = (EditorMarker_CoM)FindObjectOfType(typeof(EditorMarker_CoM));
       if (coM == null)
       {

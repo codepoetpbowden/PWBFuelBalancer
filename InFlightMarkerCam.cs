@@ -59,7 +59,7 @@ namespace PWBFuelBalancer
 
       // Change a few things - the depth needs to be higher so it renders over the top
       MarkerCam.name = "markerCam";
-      MarkerCam.depth = Camera.main.depth + 10;
+      //MarkerCam.depth = Camera.main.depth - 1;
       MarkerCam.clearFlags = CameraClearFlags.Depth;
       // Add a behaviour so we can get the MarkerCam to come around and change itself when the main camera changes
       _markerCamObject.AddComponent<MarkerCamBehaviour>(); // TODO can this be removed?
