@@ -327,6 +327,7 @@ namespace PWBFuelBalancer
 
       if (ActualCoMMarker != null) ActualCoMMarker.SetActive(!MapView.MapIsEnabled && MarkerVisible);
 
+      if (InFlightMarkerCam.MarkerCam == null) InFlightMarkerCam.CreateMarkerCam();
       if (InFlightMarkerCam.MarkerCam != null) InFlightMarkerCam.MarkerCam.enabled = !MapView.MapIsEnabled && MarkerVisible;
 
       // TODO remove - Diagnostics

@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 namespace PWBFuelBalancer
@@ -7,9 +8,9 @@ namespace PWBFuelBalancer
   [KSPAddon(KSPAddon.Startup.Flight, false)]
   public class InFlightMarkerCam : MonoBehaviour
   {
-    private GameObject _markerCamObject;
+    private static GameObject _markerCamObject;
     internal static Camera MarkerCam;
-
+    internal  static InFlightMarkerCam Instance;
     private void Awake()
     {
       //print("InFlightMarkerCam::Awake");
@@ -21,6 +22,7 @@ namespace PWBFuelBalancer
       //print("InFlightMarkerCam::Start");
       CreateMarkerCam();
       GameEvents.onVesselChange.Add(OnVesselChange);
+      Instance = this;
     }
 
     public bool MarkerCamEnabled {
@@ -49,7 +51,7 @@ namespace PWBFuelBalancer
       _markerCamObject = null;
     }
 
-    private void CreateMarkerCam()
+    internal static void CreateMarkerCam()
     {
       if (null != _markerCamObject) return;
       // print("Setting up the inflight MarkerCamObject");
