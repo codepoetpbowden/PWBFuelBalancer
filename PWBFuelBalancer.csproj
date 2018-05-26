@@ -41,7 +41,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="GuiUtils.cs" />
-    <Compile Include="InFlightMarkerCam.cs" />
+    <Compile Include="PwbMarkerCam.cs" />
     <Compile Include="MarkerCamBehaviour.cs" />
     <Compile Include="ModulePWBFuelBalancer.cs" />
     <Compile Include="Osd.cs" />

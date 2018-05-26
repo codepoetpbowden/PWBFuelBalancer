@@ -58,7 +58,6 @@ namespace PWBFuelBalancer
       _currentWindowPosition = HighLogic.LoadedSceneIsEditor ? _windowPositionEditor : _windowPositionFlight;
       _windowStyle = new GUIStyle(HighLogic.Skin.window);
 
-      if (!HighLogic.LoadedSceneIsEditor && !HighLogic.LoadedSceneIsFlight) return;
       GameEvents.onVesselWasModified.Add(OnVesselWasModified);
       GameEvents.onVesselChange.Add(OnVesselChange);
       GameEvents.onVesselLoaded.Add(OnVesselLoaded);

@@ -32,4 +32,3 @@ D:\KSP\Mods\PJS\Git\Source\PWBFuelBalancer\bin\Debug\Ionic.Zip.dll
 D:\KSP\Mods\PJS\Git\Source\PWBFuelBalancer\bin\Debug\RedShellSDK.dll
 D:\KSP\Mods\PJS\Git\Source\PWBFuelBalancer\obj\Debug\PWBFuelBalancer.csproj.CoreCompileInputs.cache
 D:\KSP\Mods\PJS\Git\Source\PWBFuelBalancer\obj\Debug\PWBFuelBalancer.csproj.CopyComplete
-D:\KSP\Mods\PJS\Git\Source\PWBFuelBalancer\obj\Debug\PWBFuelBalancer.csprojAssemblyReference.cache

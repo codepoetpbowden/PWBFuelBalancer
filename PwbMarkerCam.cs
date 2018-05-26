@@ -5,21 +5,21 @@ using UnityEngine;
 
 namespace PWBFuelBalancer
 {
-  [KSPAddon(KSPAddon.Startup.Flight, false)]
-  public class InFlightMarkerCam : MonoBehaviour
+  [KSPAddon(KSPAddon.Startup.FlightAndEditor, false)]
+  public class PwbMarkerCam : MonoBehaviour
   {
     private static GameObject _markerCamObject;
     internal static Camera MarkerCam;
-    internal  static InFlightMarkerCam Instance;
+    internal  static PwbMarkerCam Instance;
     private void Awake()
     {
-      //print("InFlightMarkerCam::Awake");
+      //print("PwbMarkerCam::Awake");
       _markerCamObject = null;
     }
 
     public void Start()
     {
-      //print("InFlightMarkerCam::Start");
+      //print("PwbMarkerCam::Start");
       CreateMarkerCam();
       GameEvents.onVesselChange.Add(OnVesselChange);
       Instance = this;
@@ -67,7 +67,7 @@ namespace PWBFuelBalancer
       _markerCamObject.AddComponent<MarkerCamBehaviour>(); // TODO can this be removed?
 
       // Set the culling mask. 
-      MarkerCam.cullingMask = 1 << 17;
+      MarkerCam.cullingMask = 1 << 25;
     }
 
     internal static Camera GetMarkerCam()
@@ -103,6 +103,7 @@ namespace PWBFuelBalancer
         markerVisible = true;
         break;
       }
+      iList.Dispose();
       return !MapView.MapIsEnabled && markerVisible;
     }
 

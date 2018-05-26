@@ -132,6 +132,7 @@ namespace PWBFuelBalancer
           }
         }
       }
+      parts.Dispose();
     }
 
     public void OnDestroy()
@@ -265,14 +266,14 @@ namespace PWBFuelBalancer
       //print("PWBKSPFueBalancer::OnLoad");
 
       // For now just dump out what the Config nodes are...
-      DumpConfigNode(node);
+      //DumpConfigNode(node);
 
       // Is the rotation config value set?
-      if (node.values.Contains("rotationInEditor")) return;
+      if (node.values.Contains("RotationInEditor")) return;
 
-      // rotationInEditor does not exist - must be a v0.0.3 craft. We need to upgrade it.
+      // RotationInEditor does not exist - must be a v0.0.3 craft. We need to upgrade it.
       //print("rotationInEditor was not set.");
-      // Only bother to upgrade if we are in flight. If we are in the VAB/SPH then the user can fix the CoM themselves (or just lauch)
+      // Only bother to upgrade if we are in flight. If we are in the VAB/SPH then the user can fix the CoM themselves (or just launch)
       if (HighLogic.LoadedSceneIsFlight)
       {
         // TODO remove diagnostic
@@ -327,8 +328,8 @@ namespace PWBFuelBalancer
 
       if (ActualCoMMarker != null) ActualCoMMarker.SetActive(!MapView.MapIsEnabled && MarkerVisible);
 
-      if (InFlightMarkerCam.MarkerCam == null) InFlightMarkerCam.CreateMarkerCam();
-      if (InFlightMarkerCam.MarkerCam != null) InFlightMarkerCam.MarkerCam.enabled = !MapView.MapIsEnabled && MarkerVisible;
+      //if (PwbMarkerCam.MarkerCam == null) PwbMarkerCam.CreateMarkerCam();
+      if (PwbMarkerCam.MarkerCam != null) PwbMarkerCam.MarkerCam.enabled = !MapView.MapIsEnabled && MarkerVisible;
 
       // TODO remove - Diagnostics
       {
@@ -393,7 +394,7 @@ namespace PWBFuelBalancer
       // Do not try to create the marker if it already exisits
       if (null != SavedCoMMarker) return;
       // First try to find the camera that will be used to display the marker - it needs a special camera to make it "float"
-      Camera markerCam = InFlightMarkerCam.GetMarkerCam();
+      Camera markerCam = PwbMarkerCam.GetMarkerCam();
 
       // Did we find the camera? If we did then set up the marker object, and idsplkay it via tha camera we found
       if (null == markerCam) return;

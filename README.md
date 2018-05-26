@@ -4,6 +4,6 @@ The PWB Fuel Balancer allows an optimum location for the Center of Mass of a ves
 
 It is possible to display a (green) marker to indicate the centre of mass in the VAB/SPH by mousing over the part and pressing D. Set the optimum CoM location buy turning of CoM in the VAB/SPH, mousing over the part and pressing M.
 
-You can display the CoM marker and optimum CoM marker inflight by right clicking on the park, and choosing "toggle marker" 
+You can display the CoM marker and optimum CoM marker inflight by right clicking on the part, and choosing "toggle marker" 
 
 There is also a GUI that can be activated via the app launcher that allows to the manual positioning of the CoM target, both in the VAB and in flight.
