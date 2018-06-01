@@ -49,7 +49,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PwbcoMMarker.cs" />
     <Compile Include="PWBFuelBalancerAddon.cs" />
-    <Compile Include="PwbkspFuelBalancer.cs" />
     <Compile Include="SavedCoMMarker.cs" />
   </ItemGroup>
   <ItemGroup>

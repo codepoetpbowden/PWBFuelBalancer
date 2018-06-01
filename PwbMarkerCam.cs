@@ -67,7 +67,7 @@ namespace PWBFuelBalancer
       _markerCamObject.AddComponent<MarkerCamBehaviour>(); // TODO can this be removed?
 
       // Set the culling mask. 
-      MarkerCam.cullingMask = 1 << 25;
+      MarkerCam.cullingMask = 1 << 17;
     }
 
     internal static Camera GetMarkerCam()

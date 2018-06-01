@@ -318,7 +318,7 @@ namespace PWBFuelBalancer
       }
     }
 
-    [KSPEvent(guiActive = true, guiName = "Toggle Marker", active = true)]
+    [KSPEvent(guiActive = true, guiActiveEditor = true, guiName = "Toggle Marker", active = true)]
     public void ToggleMarker()
     {
       MarkerVisible = !MarkerVisible;

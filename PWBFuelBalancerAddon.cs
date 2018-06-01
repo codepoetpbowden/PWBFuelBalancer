@@ -174,9 +174,9 @@ namespace PWBFuelBalancer
           while (balancers.MoveNext())
           {
             if (balancers.Current == null) continue;
-            strings.Add(balancers.Current.BalancerName);// + " position:" + balancer.vecFuelBalancerCoMTarget.ToString());
-                                                        //              GUILayout.Label(balancer.name + " position:" + balancer.vecFuelBalancerCoMTarget.ToString());
+            strings.Add(balancers.Current.BalancerName);
           }
+          balancers.Dispose();
 
           _selectedBalancer = GuiUtils.ComboBox.Box(_selectedBalancer, strings.ToArray(), this);
 
@@ -194,6 +194,7 @@ namespace PWBFuelBalancer
               selBal.BalancerName = newName;
             }
           }
+          GUILayout.Label("Position: " + selBal.VecFuelBalancerCoMTarget.ToString());
           GUILayout.BeginHorizontal();
 
           GUILayout.BeginVertical();
